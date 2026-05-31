@@ -329,6 +329,21 @@ func (s *Server) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	// 检查邮箱是否已存在
+	if email := strings.TrimSpace(firstNonEmpty(account.Email, account.LoginAccount)); email != "" {
+		if existing, _ := s.db.GetAccountByEmail(r.Context(), email); existing != nil {
+			writeError(w, http.StatusConflict, fmt.Errorf("邮箱 %s 已存在", email))
+			return
+		}
+	}
+	// 纯 Cookie 模式自动检测
+	if account.ProtocolMode == "" {
+		if strings.TrimSpace(account.Cookies) != "" &&
+			strings.TrimSpace(firstNonEmpty(account.FlowBearer, account.AT, account.AccessToken)) == "" &&
+			strings.TrimSpace(firstNonEmpty(account.RefreshToken, account.ST)) == "" {
+			account.ProtocolMode = "protocol"
+		}
+	}
 	id, err := s.db.CreateAccount(r.Context(), account)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
