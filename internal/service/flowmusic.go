@@ -414,7 +414,29 @@ func (c *FlowMusicClient) RefreshFromCookies(ctx context.Context, account domain
 	}
 	var payload map[string]any
 	headerAccount := withoutFlowBearer(account)
-	if err := c.doJSON(ctx, account.ProxyURL, http.MethodGet, c.cfg.FlowMusicBaseURL+"/__api/auth/session", &headerAccount, nil, &payload, nil); err != nil {
+	err := c.doJSON(ctx, account.ProxyURL, http.MethodGet, c.cfg.FlowMusicBaseURL+"/__api/auth/session", &headerAccount, nil, &payload, nil)
+	if err != nil {
+		// upstream session endpoint may be removed; fallback chain
+		if supabaseJWT := extractSupabaseJWT(account.Cookies); supabaseJWT != "" {
+			account.FlowBearer = supabaseJWT
+			account.AT = supabaseJWT
+			account.AccessToken = supabaseJWT
+			if _, testErr := c.GetCredits(ctx, account); testErr == nil {
+				now := time.Now().UTC()
+				account.LastRefreshAt = &now
+				account.LastRefreshResult = "cookie_supabase_jwt_success"
+				return account, nil
+			}
+			// JWT expired; try extracting refresh_token from JWT payload for RefreshSupabase fallback
+			if rt := extractRefreshTokenFromJWT(supabaseJWT); rt != "" {
+				account.RefreshToken = rt
+				account.ST = rt
+				refreshed, fallbackErr := c.RefreshSupabase(ctx, account)
+				if fallbackErr == nil {
+					return refreshed, nil
+				}
+			}
+		}
 		return account, err
 	}
 	account.RefreshToken = firstNonEmpty(findString(payload, "refresh_token"), account.RefreshToken, account.ST)
@@ -1140,6 +1162,27 @@ func extractSupabaseJWT(cookieValue string) string {
 	return token
 }
 
+
+func extractRefreshTokenFromJWT(jwt string) string {
+	parts := strings.SplitN(jwt, ".", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+	pad := (4 - len(parts[1])%4) % 4
+	raw := parts[1] + strings.Repeat("=", pad)
+	data, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return ""
+	}
+	var payload struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(payload.RefreshToken)
+}
+
 func normalizeBearerToken(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
