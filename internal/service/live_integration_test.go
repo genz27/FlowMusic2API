@@ -51,18 +51,18 @@ func TestLiveFlowMusicGenerationContract(t *testing.T) {
 	if prompt == "" {
 		prompt = "Generate a short instrumental city-pop music clip for API contract verification."
 	}
-	jobID, err := client.StartConversation(ctx, account, prompt, "lyria")
+	convResult, err := client.StartConversation(ctx, account, prompt, "lyria")
 	if err != nil {
 		t.Fatalf("StartConversation() error = %v", err)
 	}
-	stream, err := client.StreamMessages(ctx, account, jobID)
+	stream, err := client.StreamMessages(ctx, account, convResult.JobID)
 	if err != nil {
 		t.Fatalf("StreamMessages() error = %v", err)
 	}
 	clipIDs := append([]string{}, stream.ClipIDs...)
 	if len(clipIDs) == 0 {
 		if len(stream.OperationIDs) == 0 {
-			t.Fatalf("live FlowMusic contract returned no operation ids; job_id=%s events=%d", jobID, len(stream.RawEvents))
+			t.Fatalf("live FlowMusic contract returned no operation ids; job_id=%s events=%d", convResult.JobID, len(stream.RawEvents))
 		}
 		ids := append([]string{}, stream.OperationIDs...)
 		clipIDs, err = client.PollClips(ctx, account, ids, time.Now().Add(cfg.GenerationTimeout))
@@ -71,7 +71,7 @@ func TestLiveFlowMusicGenerationContract(t *testing.T) {
 		}
 	}
 	if len(clipIDs) == 0 {
-		t.Fatalf("live FlowMusic contract returned no clip ids; job_id=%s events=%d operations=%d", jobID, len(stream.RawEvents), len(stream.OperationIDs))
+		t.Fatalf("live FlowMusic contract returned no clip ids; job_id=%s events=%d operations=%d", convResult.JobID, len(stream.RawEvents), len(stream.OperationIDs))
 	}
 	clips, err := client.GetClips(ctx, account, clipIDs)
 	if err != nil {

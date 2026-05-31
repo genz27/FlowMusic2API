@@ -2807,7 +2807,7 @@ func TestGenerateFailsFastWhenStreamOnlyChats(t *testing.T) {
 	cache := storage.NewCache(cfg, db, NewHTTPClient(cfg, ""))
 	generation := NewGenerationService(cfg, db, accounts, flow, cache)
 	_, err = generation.Generate(ctx, "猫猫音乐", "flowmusic-producer-standard")
-	if err == nil || !strings.Contains(err.Error(), "no audio__create_song tool call") || strings.Contains(err.Error(), "请告诉我想要什么风格") {
+	if err == nil || !strings.Contains(err.Error(), "未调用音乐生成工具") || strings.Contains(err.Error(), "请告诉我想要什么风格") {
 		t.Fatalf("Generate() error = %v, want concise chat-only error", err)
 	}
 	if polledStatus {

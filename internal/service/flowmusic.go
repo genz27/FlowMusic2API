@@ -483,17 +483,21 @@ func (c *FlowMusicClient) GetCredits(ctx context.Context, account domain.Account
 	return info, nil
 }
 
-func (c *FlowMusicClient) StartConversation(ctx context.Context, account domain.Account, prompt, model string) (string, error) {
+func (c *FlowMusicClient) StartConversation(ctx context.Context, account domain.Account, prompt, model string) (ConversationResult, error) {
 	body := BuildConversationRequest(prompt, model)
 	var payload map[string]any
 	if err := c.doJSON(ctx, account.ProxyURL, http.MethodPost, c.cfg.FlowMusicBaseURL+"/__api/conversation", &account, body, &payload, nil); err != nil {
-		return "", err
+		return ConversationResult{}, err
 	}
+	result := ConversationResult{}
 	jobID := conversationJobID(payload)
 	if jobID == "" {
-		return "", fmt.Errorf("upstream response missing job_id")
+		return ConversationResult{}, fmt.Errorf("upstream response missing job_id")
 	}
-	return jobID, nil
+	result.JobID = jobID
+	result.OperationIDs = findOperationIDs(payload)
+	result.ClipIDs = findClipIDs(payload)
+	return result, nil
 }
 
 func conversationJobID(payload map[string]any) string {
@@ -1181,6 +1185,13 @@ func parseConversationStreamEvent(eventName, data string) ConversationStreamEven
 		if partMap, ok := part.(map[string]any); ok {
 			event.PartKind = getString(partMap, "part_kind")
 			event.ToolName = getString(partMap, "tool_name")
+			if event.PartKind == "" && event.ToolName != "" {
+				if event.Status == "start" {
+					event.PartKind = "tool-call"
+				} else if event.Status == "end" {
+					event.PartKind = "tool-return"
+				}
+			}
 			if args, ok := directValueOrNil(partMap, "args").(map[string]any); ok {
 				event.ToolTitle = firstNonEmpty(getString(args, "title"), findString(args, "title"))
 				event.SoundPrompt = firstNonEmpty(getString(args, "sound_prompt"), findString(args, "sound_prompt"))
@@ -1210,11 +1221,48 @@ func parseConversationStreamEvent(eventName, data string) ConversationStreamEven
 						}
 					}
 				}
+				// search recursively for IDs in nested content
+				for _, id := range findOperationIDs(content) {
+					event.OperationIDs = appendUnique(event.OperationIDs, id)
+				}
+				for _, id := range findClipIDs(content) {
+					event.ClipIDs = appendUnique(event.ClipIDs, id)
+				}
 				event.TextContent = scalarString(content)
 			}
 		}
 	}
 	return event
+}
+
+func extractToolLyricsIDs(events []string) []string {
+	var lyricsIDs []string
+	for _, raw := range events {
+		var payload map[string]any
+		if json.Unmarshal([]byte(raw), &payload) != nil {
+			continue
+		}
+		part, ok := directValue(payload, "part")
+		if !ok {
+			continue
+		}
+		partMap, ok := part.(map[string]any)
+		if !ok {
+			continue
+		}
+		if getString(partMap, "tool_name") != "audio__create_song" {
+			continue
+		}
+		args, ok := partMap["args"].(map[string]any)
+		if !ok {
+			continue
+		}
+		lyricsID := getString(args, "lyrics_id")
+		if lyricsID != "" {
+			lyricsIDs = appendUnique(lyricsIDs, lyricsID)
+		}
+	}
+	return lyricsIDs
 }
 
 func directValueOrNil(m map[string]any, key string) any {

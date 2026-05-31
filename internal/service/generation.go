@@ -134,7 +134,7 @@ func (s *GenerationService) GenerateWithProgress(ctx context.Context, prompt, mo
 		}
 
 		emit("conversation_starting", "提交 FlowMusic 音乐生成请求...", 10)
-		jobID, err := retryValueUnless(ctx, runtime.MaxAttempts, isAuthFailure, func() (string, error) {
+		convResult, err := retryValueUnless(ctx, runtime.MaxAttempts, isAuthFailure, func() (ConversationResult, error) {
 			return s.client.StartConversation(ctx, *account, prompt, model)
 		})
 		if err != nil {
@@ -143,8 +143,10 @@ func (s *GenerationService) GenerateWithProgress(ctx context.Context, prompt, mo
 			}
 			return output, err
 		}
-		output.JobID = jobID
-		emit("conversation_started", fmt.Sprintf("FlowMusic 任务已创建: %s", jobID), 25)
+		output.JobID = convResult.JobID
+		output.OperationIDs = append(output.OperationIDs, convResult.OperationIDs...)
+		output.ClipIDs = append(output.ClipIDs, convResult.ClipIDs...)
+		emit("conversation_started", fmt.Sprintf("FlowMusic 任务已创建: %s", convResult.JobID), 25)
 		_ = s.db.UpdateRequestLog(ctx, logID, domain.RequestLog{
 			AccountID:   &account.ID,
 			RequestBody: string(reqPayload),
@@ -155,7 +157,7 @@ func (s *GenerationService) GenerateWithProgress(ctx context.Context, prompt, mo
 
 		emit("streaming", "等待上游流式工具调用...", 30)
 		stream, err := retryValueUnless(ctx, runtime.MaxAttempts, isAuthFailure, func() (ConversationResult, error) {
-			return s.client.StreamMessagesWithEvents(ctx, *account, jobID, func(event ConversationStreamEvent) {
+			return s.client.StreamMessagesWithEvents(ctx, *account, convResult.JobID, func(event ConversationStreamEvent) {
 				for _, message := range event.ProgressMessages() {
 					emit("upstream_stream", message, 35)
 				}
@@ -174,24 +176,42 @@ func (s *GenerationService) GenerateWithProgress(ctx context.Context, prompt, mo
 			AccountID: &account.ID, StatusCode: 102, StatusText: "generating", Progress: 50,
 		})
 		if len(output.ClipIDs) == 0 {
-			if len(stream.OperationIDs) == 0 {
-				err := noAudioToolCallError(stream)
-				emit("upstream_no_tool", err.Error(), 55)
-				s.failLog(ctx, logID, account.ID, reqPayload, start, err)
-				return output, err
-			}
-			emit("polling", "流式事件未直接返回 clip，按 operation_id 轮询歌曲生成状态...", 50)
-			deadline := time.Now().Add(runtime.PollTimeout)
-			clipIDs, err := s.client.PollClipsWithProgress(ctx, *account, stream.OperationIDs, deadline, func(status ClipPollStatus) {
-				emit("polling", status.ProgressMessage(), 55)
-			})
-			if err != nil {
-				if shouldFallback(err) {
-					continue
+			pollIDs := uniqueStrings(append(convResult.OperationIDs, stream.OperationIDs...))
+			if len(pollIDs) == 0 {
+				hasToolCall, _ := streamAudioDiagnostics(stream)
+				if hasToolCall {
+					lyricsIDs := extractToolLyricsIDs(stream.RawEvents)
+					if len(lyricsIDs) > 0 {
+						emit("polling", "有工具调用，用 lyrics_id 轮询上游生成结果...", 50)
+						deadline := time.Now().Add(runtime.PollTimeout)
+						clipIDs, pollErr := s.client.PollClipsWithProgress(ctx, *account, lyricsIDs, deadline, func(status ClipPollStatus) {
+							emit("polling", status.ProgressMessage(), 55)
+						})
+						if pollErr == nil && len(clipIDs) > 0 {
+							output.ClipIDs = clipIDs
+						}
+					}
 				}
-				return output, err
+				if len(output.ClipIDs) == 0 {
+					err := noAudioToolCallError(stream)
+					emit("upstream_no_tool", err.Error(), 55)
+					s.failLog(ctx, logID, account.ID, reqPayload, start, err)
+					return output, err
+				}
+			} else {
+				emit("polling", "按 operation_id 轮询歌曲生成状态...", 50)
+				deadline := time.Now().Add(runtime.PollTimeout)
+				clipIDs, err := s.client.PollClipsWithProgress(ctx, *account, pollIDs, deadline, func(status ClipPollStatus) {
+					emit("polling", status.ProgressMessage(), 55)
+				})
+				if err != nil {
+					if shouldFallback(err) {
+						continue
+					}
+					return output, err
+				}
+				output.ClipIDs = clipIDs
 			}
-			output.ClipIDs = clipIDs
 		}
 		_ = s.db.UpdateRequestLog(ctx, logID, domain.RequestLog{
 			AccountID: &account.ID, StatusCode: 102, StatusText: "processing", Progress: 70,
@@ -469,36 +489,15 @@ func uniqueStrings(values []string) []string {
 
 func noAudioToolCallError(stream ConversationResult) error {
 	hasToolCall, text := streamAudioDiagnostics(stream)
-	sample := ""
-	for _, raw := range stream.RawEvents {
-		if strings.Contains(raw, "audio__create_song") || strings.Contains(raw, "operation_id") || strings.Contains(raw, "clip_id") {
-			if len(raw) > 300 {
-				sample = raw[:300] + "..."
-			} else {
-				sample = raw
-			}
-			break
-		}
-	}
-	if sample == "" && len(stream.RawEvents) > 0 {
-		raw := stream.RawEvents[len(stream.RawEvents)-1]
-		if len(raw) > 300 {
-			sample = raw[:300] + "..."
-		} else {
-			sample = raw
-		}
-	}
 	switch {
-	case hasToolCall && text != "" && sample != "":
-		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id; raw_sample=%s", sample)
-	case hasToolCall && sample != "":
-		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id; raw_sample=%s", sample)
+	case hasToolCall && text != "":
+		return fmt.Errorf("音乐生成失败：上游已调用生成工具但未返回任务 ID，请稍后重试")
 	case hasToolCall:
-		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id")
+		return fmt.Errorf("音乐生成失败：上游已调用生成工具但未返回任务 ID，请稍后重试")
 	case text != "":
-		return fmt.Errorf("flowmusic stream returned no audio__create_song tool call; upstream responded as chat instead of generating music")
+		return fmt.Errorf("音乐生成失败：上游未调用音乐生成工具，请检查提示词是否包含音乐相关描述")
 	default:
-		return fmt.Errorf("flowmusic stream returned no audio__create_song tool call and no operation_id/clip_id; job_id=%s", stream.JobID)
+		return fmt.Errorf("音乐生成失败：上游未返回音乐生成结果，请检查账号状态后重试")
 	}
 }
 

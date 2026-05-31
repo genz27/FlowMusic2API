@@ -8,6 +8,16 @@
     <script>
         tailwind.config={theme:{extend:{colors:{border:"hsl(0 0% 89%)",background:"hsl(0 0% 100%)",foreground:"hsl(0 0% 3.9%)",muted:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 45.1%)"},primary:{DEFAULT:"hsl(0 0% 9%)",foreground:"hsl(0 0% 98%)"},secondary:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 9%)"}}}}}
     </script>
+    <style>
+        #resultContent::-webkit-scrollbar{width:5px}
+        #resultContent::-webkit-scrollbar-track{background:transparent}
+        #resultContent::-webkit-scrollbar-thumb{background:hsl(0 0% 85%);border-radius:10px}
+        #resultContent::-webkit-scrollbar-thumb:hover{background:hsl(0 0% 70%)}
+        @keyframes gentle-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+        .gentle-pulse{animation:gentle-pulse 3s ease-in-out infinite}
+        details>summary{list-style:none;cursor:pointer}
+        details>summary::marker,details>summary::-webkit-details-marker{display:none}
+    </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-foreground antialiased">
     <!-- Header -->
@@ -39,7 +49,7 @@
         <div class="grid gap-6 lg:grid-cols-[380px_1fr] xl:grid-cols-[400px_1fr]">
             <!-- 左侧：控制面板 -->
             <section class="space-y-5">
-                <div class="rounded-xl border border-border bg-white shadow-sm">
+                <div class="rounded-xl border border-border bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
                     <div class="border-b border-border px-5 py-3.5">
                         <h2 class="text-sm font-semibold">生成参数</h2>
                     </div>
@@ -67,7 +77,7 @@
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-border bg-white shadow-sm">
+                <div class="rounded-xl border border-border bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
                     <div class="border-b border-border px-5 py-3.5">
                         <h2 class="text-sm font-semibold">提示词示例</h2>
                     </div>
@@ -82,14 +92,14 @@
 
             <!-- 右侧：结果区 -->
             <section class="space-y-5">
-                <div class="rounded-xl border border-border bg-white shadow-sm">
+                <div class="rounded-xl border border-border bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
                     <div class="border-b border-border px-5 py-3.5 flex items-center justify-between">
                         <h2 class="text-sm font-semibold">生成结果</h2>
                         <span id="statusText" class="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">准备就绪</span>
                     </div>
                     <div id="resultContent" class="p-5 space-y-4 text-sm text-muted-foreground max-h-[70vh] overflow-y-auto">
                         <div class="flex flex-col items-center justify-center py-12 text-center">
-                            <svg class="mb-3 h-10 w-10 text-muted-foreground/40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                            <svg class="mb-3 h-10 w-10 text-muted-foreground/30 gentle-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                             <p class="text-xs text-muted-foreground/60">提交生成后，结果将展示在这里</p>
                         </div>
                     </div>
@@ -105,7 +115,7 @@
 <script>
 const $=id=>document.getElementById(id);
 const escapeHtml=text=>String(text??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const setBusy=busy=>{$('generateBtn').disabled=busy;$('generateBtn').innerHTML=busy?'<svg class="animate-spin mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> 生成中...':'<svg class="mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 生成音乐';$('statusText').textContent=busy?'生成中':'准备就绪';$('statusText').className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs '+(busy?'border-blue-200 bg-blue-50 text-blue-600':'border-border bg-muted text-muted-foreground')};
+const setBusy=busy=>{$('generateBtn').disabled=busy;$('generateBtn').innerHTML=busy?'<svg class="animate-spin -ml-0.5 mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> 生成中...':'<svg class="mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 生成音乐';let s=$('statusText');s.textContent=busy?'生成中':'准备就绪';s.className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs '+(busy?'border-blue-200 bg-blue-50 text-blue-600 animate-pulse':'border-border bg-muted text-muted-foreground')}
 const normalizeUrl=url=>{const text=String(url||'').trim();if(!text)return'';if(text.startsWith('/tmp/'))return `${location.origin}${text}`;return text};
 const isAudio=url=>/(\.mp3|\.wav|\.m4a|\.aac|\.ogg|\.flac)(\?|$)/i.test(url)||String(url).startsWith('data:audio/');
 const isVideo=url=>/(\.mp4|\.webm|\.mov|\.m3u8|\.avi)(\?|$)/i.test(url)||String(url).startsWith('data:video/');
@@ -133,23 +143,29 @@ function mediaBlock(label,url){
     if(isAudio(url)) preview=`<audio controls preload="metadata" src="${safe}" class="w-full rounded-lg"></audio>`;
     else if(isVideo(url)) preview=`<video controls preload="metadata" src="${safe}" class="max-h-80 w-full rounded-lg border border-border bg-black"></video>`;
     else if(isImage(url)) preview=`<a href="${safe}" target="_blank" class="block"><img src="${safe}" alt="${escapeHtml(label)}" loading="lazy" decoding="async" class="max-h-80 rounded-lg border border-border object-contain bg-muted/30"></a>`;
-    return `<div class="space-y-2"><p class="text-xs font-medium text-foreground">${escapeHtml(label)}</p><a href="${safe}" target="_blank" class="break-all text-xs text-blue-600 hover:underline">${safe}</a>${preview}</div>`;
+    return preview;
 }
 
 function renderResult(markdown){
     const box=$('resultContent');const clips=parseClips(markdown);
     if(!clips.length){box.innerHTML=`<pre class="whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/30 p-3 text-xs">${escapeHtml(markdown||'无结果')}</pre>`;return}
     box.innerHTML=clips.map((clip,i)=>{
-        const media=[mediaBlock('Audio',clip.audio),mediaBlock('WAV',clip.wav),mediaBlock('封面',clip.image),mediaBlock('视频',clip.video)].filter(Boolean).join('');
-        const meta=[clip.duration?`<span class="inline-flex items-center gap-1"><svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${escapeHtml(clip.duration)}</span>`:'',clip.soundPrompt?`<span class="inline-flex items-center gap-1"><svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>${escapeHtml(clip.soundPrompt)}</span>`:''].filter(Boolean).join('');
-        const lyrics=clip.lyrics?`<details class="rounded-lg border border-border bg-muted/20"><summary class="cursor-pointer px-3 py-2 text-xs font-medium text-foreground select-none">歌词</summary><pre class="whitespace-pre-wrap break-words p-3 pt-0 text-xs leading-relaxed text-muted-foreground">${escapeHtml(clip.lyrics)}</pre></details>`:'';
-        return `<article class="rounded-lg border border-border bg-background overflow-hidden">
-            <div class="p-4">
+        const items=[];
+        if(clip.audio) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">Audio</p>${mediaBlock('Audio',clip.audio)}</div>`);
+        if(clip.wav) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">WAV</p>${mediaBlock('WAV',clip.wav)}</div>`);
+        if(clip.image) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">封面</p>${mediaBlock('封面',clip.image)}</div>`);
+        if(clip.video) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">视频</p>${mediaBlock('视频',clip.video)}</div>`);
+        const meta=[];
+        if(clip.duration) meta.push(`<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 rounded-full px-2 py-0.5 text-xs"><svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${escapeHtml(clip.duration)}</span>`);
+        if(clip.soundPrompt) meta.push(`<span class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 rounded-full px-2 py-0.5 text-xs truncate max-w-[300px]" title="${escapeHtml(clip.soundPrompt)}"><svg class="h-3 w-3 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg><span class="truncate">${escapeHtml(clip.soundPrompt)}</span></span>`);
+        const lyrics=clip.lyrics?`<details class="rounded-lg border border-border bg-muted/20 hover:shadow-sm transition-shadow duration-200"><summary class="px-3 py-2 text-xs font-medium text-foreground select-none flex items-center gap-2"><svg class="h-3 w-3 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>歌词</summary><pre class="whitespace-pre-wrap break-words p-3 pt-0 text-xs leading-relaxed text-muted-foreground">${escapeHtml(clip.lyrics)}</pre></details>`:'';
+        return `<article class="rounded-xl border border-border bg-background overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
+            <div class="bg-gradient-to-r from-muted/40 to-muted/10 border-b border-border px-4 py-3">
                 <h3 class="text-sm font-semibold text-foreground">${i+1}. ${escapeHtml(clip.title||`clip-${i+1}`)}</h3>
-                ${meta?`<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">${meta}</div>`:''}
-                ${media?`<div class="mt-3 grid gap-3 sm:grid-cols-2">${media}</div>`:''}
-                ${lyrics?`<div class="mt-3">${lyrics}</div>`:''}
             </div>
+            ${meta.length?`<div class="border-b border-border/50 px-4 py-2 flex flex-wrap gap-1.5 bg-muted/10">${meta.join('')}</div>`:''}
+            <div class="divide-y divide-border/50">${items.join('')}</div>
+            ${lyrics?`<div class="border-t border-border/50 px-4 py-3">${lyrics}</div>`:''}
         </article>`;
     }).join('');
 }
@@ -180,7 +196,7 @@ async function loadConfig(){
 async function generate(){
     const prompt=$('promptInput').value.trim();if(!prompt)return alert('请输入提示词');
     setBusy(true);
-    $('resultContent').innerHTML='<div class="flex items-center justify-center py-8"><svg class="animate-spin h-6 w-6 text-muted-foreground/40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><span class="ml-2 text-xs text-muted-foreground/60">正在生成...</span></div>';
+    $('resultContent').innerHTML='<div class="flex flex-col items-center justify-center py-12"><svg class="animate-spin h-8 w-8 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><p class="mt-4 text-sm text-muted-foreground/60">正在生成音乐，请稍候...</p><div class="mt-4 flex gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-blue-300 animate-bounce" style="animation-delay:0ms"></span><span class="h-1.5 w-1.5 rounded-full bg-blue-400 animate-bounce" style="animation-delay:150ms"></span><span class="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style="animation-delay:300ms"></span></div></div>';
     let content='';
     try{
         const resp=await fetch('/api/guest/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:$('modelSelect').value,messages:[{role:'user',content:prompt}],stream:true})});
@@ -205,7 +221,7 @@ async function generate(){
 }
 
 $('generateBtn').addEventListener('click',generate);
-$('clearBtn').addEventListener('click',()=>{$('resultContent').innerHTML='<div class="flex flex-col items-center justify-center py-12 text-center"><svg class="mb-3 h-10 w-10 text-muted-foreground/40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><p class="text-xs text-muted-foreground/60">提交生成后，结果将展示在这里</p></div>';$('statusText').textContent='准备就绪';$('statusText').className='inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground'});
+$('clearBtn').addEventListener('click',()=>{$('resultContent').innerHTML='<div class="flex flex-col items-center justify-center py-12 text-center"><svg class="mb-3 h-10 w-10 text-muted-foreground/30 gentle-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><p class="text-xs text-muted-foreground/60">提交生成后，结果将展示在这里</p></div>';$('statusText').textContent='准备就绪';$('statusText').className='inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground'});
 loadConfig();
 </script>
 </body>

@@ -8,6 +8,10 @@
     <style>
         @keyframes slide-up{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
         .animate-slide-up{animation:slide-up .3s ease-out}
+        @keyframes fade-scale{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+        .animate-fade-scale{animation:fade-scale .25s ease-out}
+        @keyframes gentle-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+        .gentle-pulse{animation:gentle-pulse 3s ease-in-out infinite}
         .tab-btn{transition:all .2s ease}
         .line-clamp-2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
         .token-table-shell{overflow:hidden}
@@ -15,6 +19,11 @@
         .token-table-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.25rem}
         .token-table-actions button{border:1px solid transparent}
         .token-table-actions button:hover{border-color:hsl(0 0% 89%)}
+        details>summary{list-style:none;cursor:pointer;user-select:none}
+        details>summary::marker,details>summary::-webkit-details-marker{display:none}
+        #logDetailContent::-webkit-scrollbar{width:5px}
+        #logDetailContent::-webkit-scrollbar-track{background:transparent}
+        #logDetailContent::-webkit-scrollbar-thumb{background:hsl(0 0% 85%);border-radius:10px}
         @media (max-width:1100px){
             .token-table{font-size:12px}
             .token-table th,.token-table td{padding-left:.375rem;padding-right:.375rem}
@@ -60,20 +69,20 @@
         <div id="panelTokens">
             <!-- 统计卡片 -->
             <div class="grid gap-4 grid-cols-2 md:grid-cols-4 mb-6">
-                <div class="rounded-lg border border-border bg-background p-4">
-                    <p class="text-sm font-medium text-muted-foreground mb-2">Token 总数</p>
+                <div class="rounded-lg border border-border bg-background p-4 hover:shadow-sm transition-shadow duration-200">
+                    <p class="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2"><svg class="h-3.5 w-3.5 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Token 总数</p>
                     <h3 class="text-xl font-bold" id="statTotal">-</h3>
                 </div>
-                <div class="rounded-lg border border-border bg-background p-4">
-                    <p class="text-sm font-medium text-muted-foreground mb-2">活跃 Token</p>
+                <div class="rounded-lg border border-border bg-background p-4 hover:shadow-sm transition-shadow duration-200">
+                    <p class="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2"><svg class="h-3.5 w-3.5 text-green-500/70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>活跃 Token</p>
                     <h3 class="text-xl font-bold text-green-600" id="statActive">-</h3>
                 </div>
-                <div class="rounded-lg border border-border bg-background p-4">
-                    <p class="text-sm font-medium text-muted-foreground mb-2">今日歌曲/总歌曲</p>
+                <div class="rounded-lg border border-border bg-background p-4 hover:shadow-sm transition-shadow duration-200">
+                    <p class="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2"><svg class="h-3.5 w-3.5 text-blue-500/70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>今日歌曲/总歌曲</p>
                     <h3 class="text-xl font-bold text-blue-600" id="statMusic">-</h3>
                 </div>
-                <div class="rounded-lg border border-border bg-background p-4">
-                    <p class="text-sm font-medium text-muted-foreground mb-2">今日错误/总错误</p>
+                <div class="rounded-lg border border-border bg-background p-4 hover:shadow-sm transition-shadow duration-200">
+                    <p class="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2"><svg class="h-3.5 w-3.5 text-red-500/70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>今日错误/总错误</p>
                     <h3 class="text-xl font-bold text-destructive" id="statErrors">-</h3>
                 </div>
             </div>
@@ -165,7 +174,7 @@
         <div id="panelSettings" class="hidden">
             <div class="grid gap-6 lg:grid-cols-2">
                 <!-- 安全配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">安全配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -186,7 +195,7 @@
                 </div>
 
                 <!-- API 密钥配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">API 密钥配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -204,7 +213,7 @@
                 </div>
 
                 <!-- 代理配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">代理配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -239,7 +248,7 @@
                 </div>
 
                 <!-- 生成配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">生成配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -261,7 +270,7 @@
                     <button onclick="saveGenerationTimeout()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">保存配置</button>
                 </div>
 
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">Token 轮询配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -277,7 +286,7 @@
                 </div>
 
                 <!-- 错误处理配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">错误处理配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -290,7 +299,7 @@
                 </div>
 
                 <!-- 游客试用配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">游客试用配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -315,7 +324,7 @@
                 </div>
 
                 <!-- 缓存配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">缓存配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -408,7 +417,7 @@
                 </div>
 
                 <!-- 调试配置 -->
-                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col hover:shadow-sm transition-shadow duration-200">
                     <h3 class="text-lg font-semibold mb-4">调试配置</h3>
                     <div class="space-y-4 flex-1">
                         <div>
@@ -453,20 +462,20 @@
                         </div>
                     </div>
                     <div class="grid gap-3 p-4 md:grid-cols-2">
-                        <div class="rounded-lg border border-border bg-muted/20 p-4">
+                        <div class="rounded-lg border border-border bg-muted/20 p-4 hover:shadow-sm transition-shadow duration-200">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
-                                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">实时任务</p>
+                                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-1.5"><span class="inline-flex h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>实时任务</p>
                                     <p class="mt-2 text-2xl font-semibold" id="activeTasksCount">0</p>
                                 </div>
                                 <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">自动刷新中</span>
                             </div>
                             <p class="mt-3 text-xs leading-5 text-muted-foreground">展示当前仍在运行的生成任务，含模型、阶段、进度和运行时长。</p>
                         </div>
-                        <div class="rounded-lg border border-border bg-muted/20 p-4">
+                        <div class="rounded-lg border border-border bg-muted/20 p-4 hover:shadow-sm transition-shadow duration-200">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
-                                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">完成日志</p>
+                                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-1.5"><svg class="h-3 w-3 text-green-500/70" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>完成日志</p>
                                     <p class="mt-2 text-2xl font-semibold" id="completedLogsCount">0</p>
                                 </div>
                                 <span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">最近 100 条</span>
@@ -546,7 +555,7 @@
                 </div>
 
                 <div class="grid gap-6 lg:grid-cols-[minmax(280px,340px)_1fr]">
-                    <div class="rounded-lg border border-border bg-background">
+                    <div class="rounded-lg border border-border bg-background hover:shadow-sm transition-shadow duration-200">
                         <div class="border-b border-border p-4">
                             <h4 class="text-base font-semibold">可测试模型</h4>
                             <p class="mt-1 text-xs text-muted-foreground">已合并基础模型和别名模型。</p>
@@ -609,7 +618,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-lg border border-border bg-background">
+                        <div class="rounded-lg border border-border bg-background hover:shadow-sm transition-shadow duration-200">
                             <div class="flex items-center justify-between gap-3 border-b border-border p-4">
                                 <div>
                                     <h4 class="text-base font-semibold">测试输出</h4>
@@ -628,12 +637,15 @@
         </div>
 
         <!-- 日志详情模态框 -->
-        <div id="logDetailModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-            <div class="bg-background rounded-lg border border-border w-full max-w-3xl shadow-xl max-h-[80vh] flex flex-col">
-                <div class="flex items-center justify-between p-5 border-b border-border">
-                    <h3 class="text-lg font-semibold">日志详情</h3>
-                    <button onclick="closeLogDetailModal()" class="text-muted-foreground hover:text-foreground">
-                        <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div id="logDetailModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-background rounded-lg border border-border w-full max-w-3xl shadow-xl max-h-[80vh] flex flex-col animate-fade-scale">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-muted/20 to-muted/5">
+                    <h3 class="text-lg font-semibold flex items-center gap-2">
+                        <svg class="h-4 w-4 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        日志详情
+                    </h3>
+                    <button onclick="closeLogDetailModal()" class="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"/>
                             <line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
@@ -654,12 +666,15 @@
     </main>
 
     <!-- 添加 Token 模态框 -->
-    <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+    <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-background rounded-lg border border-border w-full max-w-2xl shadow-xl my-auto">
-            <div class="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-background">
-                <h3 class="text-lg font-semibold">添加 Token</h3>
-                <button onclick="closeAddModal()" class="text-muted-foreground hover:text-foreground">
-                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-background bg-gradient-to-r from-muted/20 to-muted/5">
+                <h3 class="text-lg font-semibold flex items-center gap-2">
+                    <svg class="h-4 w-4 text-muted-foreground/60" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    添加 Token
+                </h3>
+                <button onclick="closeAddModal()" class="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
@@ -1068,7 +1083,7 @@
                 const operationLabel=getLogOperationLabel(task);
                 const operationModel=getLogOperationModel(task);
                 const startedAt=formatLogDateTimeParts(task.started_at);
-                return `<div class="min-w-0 rounded-lg border border-border bg-muted/10 p-4 transition-colors hover:bg-muted/20"><div class="flex min-w-0 items-center justify-between gap-3"><div class="flex min-w-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getLogOperationBadgeClass(task)}">${escapeLogHtml(operationLabel)}</span><span class="min-w-0 truncate text-sm font-mono font-medium text-foreground" title="${escapeLogHtml(operationModel)}">${escapeLogHtml(operationModel)}</span></div><span class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${statusClass}">${escapeLogHtml(statusText)}</span></div><div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground"><span class="whitespace-nowrap">进度 <b class="text-foreground">${escapeLogHtml(formatLogProgress(task))}</b></span><span class="whitespace-nowrap">耗时 <b class="text-foreground">${escapeLogHtml(formatLogDurationMS(task.duration_ms))}</b></span><span class="whitespace-nowrap">开始 <b class="text-foreground">${escapeLogHtml(createdAtLabel(startedAt))}</b></span></div></div>`;
+                return `<div class="min-w-0 rounded-lg border border-border bg-background p-4 shadow-sm hover:shadow-md transition-all duration-200"><div class="flex min-w-0 items-center justify-between gap-3"><div class="flex min-w-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getLogOperationBadgeClass(task)}">${escapeLogHtml(operationLabel)}</span><span class="min-w-0 truncate text-sm font-mono font-medium text-foreground" title="${escapeLogHtml(operationModel)}">${escapeLogHtml(operationModel)}</span></div><span class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${statusClass}">${escapeLogHtml(statusText)}</span></div><div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground"><span class="whitespace-nowrap">进度 <b class="text-foreground">${escapeLogHtml(formatLogProgress(task))}</b></span><span class="whitespace-nowrap">耗时 <b class="text-foreground">${escapeLogHtml(formatLogDurationMS(task.duration_ms))}</b></span><span class="whitespace-nowrap">开始 <b class="text-foreground">${escapeLogHtml(createdAtLabel(startedAt))}</b></span></div></div>`;
             }).join('');
         },
         startLogsAutoRefresh=()=>{
@@ -1126,7 +1141,7 @@
                     const durationText=formatLogDurationSeconds(l.duration);
                     const statusCodeValue=l.status_code!==null&&l.status_code!==undefined?String(l.status_code):'-';
                     const statusCodeClass=l.status_code===102?'border border-amber-200 bg-amber-50 text-amber-700':(l.status_code===200?'border border-green-200 bg-green-50 text-green-700':(l.status_code===null||l.status_code===undefined?'border border-slate-200 bg-slate-100 text-slate-700':'border border-red-200 bg-red-50 text-red-700'));
-                    return `<tr class="align-top transition-colors hover:bg-muted/20"><td class="py-3 px-3">${renderLogOperationCell(l)}</td><td class="py-3 px-3 whitespace-nowrap"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${formatLogStatusClass(l)}">${escapeLogHtml(statusText)}</span></td><td class="py-3 px-3 whitespace-nowrap"><span class="text-sm font-medium text-foreground">${escapeLogHtml(progressText)}</span></td><td class="py-3 px-3 whitespace-nowrap"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${statusCodeClass}">${escapeLogHtml(statusCodeValue)}</span></td><td class="py-3 px-3 whitespace-nowrap"><div class="text-sm font-medium text-foreground">${escapeLogHtml(durationText)}</div></td><td class="py-3 px-3 whitespace-nowrap"><div class="truncate text-xs text-muted-foreground" title="${escapeLogHtml(`${createdAt.date} ${createdAt.time||'-'}`)}">${escapeLogHtml(createdAt.date)} <span class="font-mono">${escapeLogHtml(createdAt.time||'-')}</span></div></td><td class="py-3 px-3 whitespace-nowrap"><button onclick="showLogDetail(${l.id})" class="inline-flex items-center justify-center rounded-md hover:bg-blue-50 hover:text-blue-700 h-8 px-2.5 text-xs font-medium">详情</button></td></tr>`;
+                    return `<tr class="align-top transition-all duration-150 hover:bg-muted/30 cursor-pointer" onclick="showLogDetail(${l.id})"><td class="py-3 px-3">${renderLogOperationCell(l)}</td><td class="py-3 px-3 whitespace-nowrap"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${formatLogStatusClass(l)}">${escapeLogHtml(statusText)}</span></td><td class="py-3 px-3 whitespace-nowrap"><span class="text-sm font-medium text-foreground">${escapeLogHtml(progressText)}</span></td><td class="py-3 px-3 whitespace-nowrap"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${statusCodeClass}">${escapeLogHtml(statusCodeValue)}</span></td><td class="py-3 px-3 whitespace-nowrap"><div class="text-sm font-medium text-foreground">${escapeLogHtml(durationText)}</div></td><td class="py-3 px-3 whitespace-nowrap"><div class="truncate text-xs text-muted-foreground" title="${escapeLogHtml(`${createdAt.date} ${createdAt.time||'-'}`)}">${escapeLogHtml(createdAt.date)} <span class="font-mono">${escapeLogHtml(createdAt.time||'-')}</span></div></td><td class="py-3 px-3 whitespace-nowrap"><button class="inline-flex items-center justify-center rounded-md hover:bg-blue-50 hover:text-blue-700 h-8 px-2.5 text-xs font-medium transition-colors">详情</button></td></tr>`;
                 }).join('');
                 if(window.activeLogDetailId&&window.logListMeta[window.activeLogDetailId])await showLogDetail(window.activeLogDetailId,{silent:true});
             }catch(e){
@@ -1164,7 +1179,7 @@
         },
         showLogDetail=async(logId,opts={})=>{const silent=!!opts.silent;const modal=$('logDetailModal');const content=$('logDetailContent');window.logDetailCache=window.logDetailCache||Object.create(null);window.logListMeta=window.logListMeta||Object.create(null);window.logDetailRequestSeq=(window.logDetailRequestSeq||0)+1;const requestSeq=window.logDetailRequestSeq;window.activeLogDetailId=logId;modal.classList.remove('hidden');if(!silent||content.dataset.logId!==String(logId))content.innerHTML='<div class="rounded-md border border-border p-4 bg-muted/30 text-sm text-muted-foreground">\u65e5\u5fd7\u8be6\u60c5\u52a0\u8f7d\u4e2d...</div>';try{const meta=window.logListMeta[logId];let log=window.logDetailCache[logId];const unchanged=log&&meta&&log.updated_at===meta.updated_at;if(silent&&unchanged&&content.dataset.logId===String(logId))return;if(!unchanged){const r=await apiRequest(`/api/logs/${logId}`);if(!r)return;if(window.logDetailRequestSeq!==requestSeq||window.activeLogDetailId!==logId||modal.classList.contains('hidden'))return;if(r.status===404){content.innerHTML='<div class="rounded-md border border-red-200 p-4 bg-red-50 text-sm text-red-700">\u65e5\u5fd7\u4e0d\u5b58\u5728\u6216\u5df2\u88ab\u5220\u9664</div>';return}log=await r.json();window.logDetailCache[logId]=log}if(window.logDetailRequestSeq!==requestSeq||window.activeLogDetailId!==logId||modal.classList.contains('hidden'))return;renderLogDetail(log)}catch(e){if(window.logDetailRequestSeq!==requestSeq||window.activeLogDetailId!==logId||modal.classList.contains('hidden'))return;console.error('\u52a0\u8f7d\u65e5\u5fd7\u8be6\u60c5\u5931\u8d25:',e);content.innerHTML=`<div class="rounded-md border border-red-200 p-4 bg-red-50 text-sm text-red-700">\u52a0\u8f7d\u65e5\u5fd7\u8be6\u60c5\u5931\u8d25: ${escapeLogHtml(e.message||'\u672a\u77e5\u9519\u8bef')}</div>`;if(!silent)showToast('\u52a0\u8f7d\u65e5\u5fd7\u8be6\u60c5\u5931\u8d25: '+e.message,'error')}},
         closeLogDetailModal=()=>{window.activeLogDetailId=null;resetLogMediaCache();$('logDetailModal').classList.add('hidden')},
-        showToast=(m,t='info')=>{const d=document.createElement('div'),bc={success:'bg-green-600',error:'bg-destructive',info:'bg-primary'};d.className=`fixed bottom-4 right-4 ${bc[t]||bc.info} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up`;d.textContent=m;document.body.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.parentNode&&document.body.removeChild(d),300)},2000)},
+        showToast=(m,t='info')=>{const d=document.createElement('div'),bc={success:'bg-green-600',error:'bg-destructive',info:'bg-gray-800'};d.className=`fixed bottom-4 right-4 ${bc[t]||bc.info} text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium z-50 animate-slide-up`;d.textContent=m;d.style.boxShadow='0 8px 32px rgba(0,0,0,0.2)';document.body.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transform='translateY(8px)';d.style.transition='all .25s ease';setTimeout(()=>d.parentNode&&document.body.removeChild(d),300)},2000)},
         logout=()=>{if(!confirm('确定要退出登录吗?'))return;localStorage.removeItem('adminToken');location.href='/login'},
         switchTab=t=>{const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);['tokens','settings','logs','test'].forEach(n=>{const active=n===t;$(`panel${cap(n)}`).classList.toggle('hidden',!active);$(`tab${cap(n)}`).classList.toggle('border-primary',active);$(`tab${cap(n)}`).classList.toggle('text-primary',active);$(`tab${cap(n)}`).classList.toggle('border-transparent',!active);$(`tab${cap(n)}`).classList.toggle('text-muted-foreground',!active)});if(t==='settings'){stopLogsAutoRefresh();loadAdminConfig();loadProxyConfig();loadCacheConfig();loadGenerationTimeout();loadCallLogicConfig();loadATAutoRefreshConfig()}else if(t==='logs'){startLogsAutoRefresh();refreshLogs()}else if(t==='test'){stopLogsAutoRefresh();initTestPanel()}else{stopLogsAutoRefresh()}};
 
@@ -1859,7 +1874,7 @@
             }else if(mediaType==='image'){
                 preview=`<a href="${safeUrl}" target="_blank" class="block"><img src="${safeUrl}" alt="${safeLabel}" loading="lazy" decoding="async" data-media-url="${safeUrl}" data-media-label="${safeLabel}" onerror="handleLogMediaPreviewError(this)" class="max-h-80 rounded-md border border-border object-contain bg-background"></a>`;
             }
-            return `<div class="space-y-2"><p class="text-xs font-medium">${safeLabel}</p>${withUrl?renderLogLink('URL',previewUrl):''}${preview}</div>`;
+            return `<div class="space-y-2"><p class="text-xs font-medium">${safeLabel}</p>${preview}</div>`;
         }
 
         function renderLyricsBlock(lyrics){
@@ -1870,40 +1885,37 @@
             return `<div class="rounded-md border border-border bg-background p-2"><p class="text-xs font-medium mb-1">歌词（完整展开）</p>${note}<pre class="text-xs whitespace-pre-wrap break-words max-h-none overflow-visible">${escapeLogHtml(text)}</pre></div>`;
         }
 
-        function renderLogClips(clips){
+                        function renderLogClips(clips){
             if(!Array.isArray(clips)||!clips.length) return '';
             const cards=clips.map((clip,index)=>{
-                let mediaHtml='';
-                if(clip.audio) mediaHtml+=renderMediaPreview('Audio',clip.audio);
-                if(clip.wav) mediaHtml+=renderMediaPreview('WAV',clip.wav);
-                if(clip.image) mediaHtml+=renderMediaPreview('封面',clip.image);
-                if(clip.video) mediaHtml+=renderMediaPreview('视频',clip.video);
+                const items=[];
+                if(clip.audio) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">Audio</p>${renderMediaPreview('Audio',clip.audio,false)}</div>`);
+                if(clip.wav) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">WAV</p>${renderMediaPreview('WAV',clip.wav,false)}</div>`);
+                if(clip.image) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">封面</p>${renderMediaPreview('封面',clip.image,false)}</div>`);
+                if(clip.video) items.push(`<div class="border-b border-border/50 last:border-b-0 px-4 py-3"><p class="text-xs font-medium text-foreground mb-1.5">视频</p>${renderMediaPreview('视频',clip.video,false)}</div>`);
                 const meta=[];
-                if(clip.duration) meta.push(`<span>时长: ${escapeLogHtml(typeof clip.duration==='number'?clip.duration.toFixed(2)+'s':clip.duration)}</span>`);
-                if(clip.operationId) meta.push(`<span>任务: ${escapeLogHtml(clip.operationId)}</span>`);
+                if(clip.duration) meta.push(`<span class="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-xs">时长: ${escapeLogHtml(typeof clip.duration==='number'?clip.duration.toFixed(2)+'s':clip.duration)}</span>`);
+                if(clip.operationId) meta.push(`<span class="inline-flex items-center rounded-full bg-muted/50 px-2 py-0.5 text-xs">任务: ${escapeLogHtml(clip.operationId)}</span>`);
                 let textHtml='';
-                if(clip.soundPrompt) textHtml+=`<div class="rounded-md border border-border bg-background p-2"><p class="text-xs font-medium mb-1">Sound Prompt</p><p class="text-xs whitespace-pre-wrap break-words">${escapeLogHtml(clip.soundPrompt)}</p></div>`;
-                if(clip.lyrics) textHtml+=renderLyricsBlock(clip.lyrics);
-                return `<div class="rounded-lg border border-border bg-background p-3 space-y-3">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-sm font-semibold">${escapeLogHtml(index+1)}. ${escapeLogHtml(clip.title||clip.id)}</p>
-                            <p class="text-xs text-muted-foreground break-all">${escapeLogHtml(clip.id||'')}</p>
-                        </div>
+                if(clip.soundPrompt) textHtml+=`<div class="px-4 py-3 border-t border-border/50"><p class="text-xs font-medium text-foreground mb-1">Sound Prompt</p><p class="text-xs whitespace-pre-wrap break-words text-muted-foreground">${escapeLogHtml(clip.soundPrompt)}</p></div>`;
+                if(clip.lyrics) textHtml+=`<div class="px-4 py-3 border-t border-border/50">${renderLyricsBlock(clip.lyrics)}</div>`;
+                return `<div class="rounded-xl border border-border bg-background overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
+                    <div class="bg-gradient-to-r from-muted/40 to-muted/10 border-b border-border px-4 py-3">
+                        <p class="text-sm font-semibold text-foreground">${escapeLogHtml(index+1)}. ${escapeLogHtml(clip.title||clip.id)}</p>
+                        <p class="text-xs text-muted-foreground/60 mt-0.5">${escapeLogHtml(clip.id||'')}</p>
                     </div>
-                    ${meta.length?`<div class="flex flex-wrap gap-2 text-xs text-muted-foreground">${meta.join('')}</div>`:''}
-                    ${mediaHtml?`<div class="grid gap-3 md:grid-cols-2">${mediaHtml}</div>`:''}
-                    ${textHtml?`<div class="space-y-2">${textHtml}</div>`:''}
+                    ${meta.length?`<div class="border-b border-border/50 px-4 py-2 flex flex-wrap gap-1.5 bg-muted/10">${meta.join('')}</div>`:''}
+                    <div class="divide-y divide-border/50">${items.join('')}</div>
+                    ${textHtml}
                 </div>`;
             }).join('');
             return `<div class="space-y-2"><h4 class="font-medium text-sm">歌曲与封面（${clips.length}首）</h4><div class="space-y-3">${cards}</div></div>`;
         }
-
         function handleLogMediaPreviewError(node){
             if(!node) return;
             const mediaUrl=node.dataset.mediaUrl||'';
             const mediaLabel=node.dataset.mediaLabel||'媒体';
-            node.outerHTML=`<div class="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 space-y-2"><p>${escapeLogHtml(mediaLabel)}预览加载失败，请直接打开链接查看。</p>${renderLogLink('URL',mediaUrl)}</div>`;
+            node.outerHTML=`<div class="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 space-y-2"><p>${escapeLogHtml(mediaLabel)}预览加载失败</p><a href="${escapeLogHtml(mediaUrl)}" target="_blank" class="inline-flex items-center rounded-md bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 transition-colors">直接打开链接</a></div>`;
         }
 
         function loadLogMediaPreview(button){
@@ -1984,7 +1996,7 @@
                         detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm">媒体资产信息</h4><div class="rounded-md border border-border p-3 bg-muted/30 space-y-2">${assetsHtml||'<p class="text-xs text-muted-foreground">无资产详情</p>'}</div></div>`;
                     }
 
-                    detailHtml+=`<details class="space-y-2" data-detail-key="full-response"><summary class="cursor-pointer text-sm font-medium">完整响应（大字段已截断）</summary><pre class="mt-2 rounded-md border border-border p-3 bg-muted/30 text-xs overflow-x-auto">${escapeLogHtml(responsePayloadText)}</pre></details>`;
+                    detailHtml+=`<details class="space-y-2 rounded-md border border-border p-3 bg-muted/10" data-detail-key="full-response"><summary class="text-sm font-medium flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"><svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg>完整响应（大字段已截断）</summary><pre class="mt-2 rounded-md border border-border p-3 bg-muted/30 text-xs overflow-x-auto">${escapeLogHtml(responsePayloadText)}</pre></details>`;
                 }else{
                     detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm">响应数据</h4><pre class="rounded-md border border-border p-3 bg-muted/30 text-xs overflow-x-auto">${escapeLogHtml(responsePayloadText)}</pre></div>`;
                 }
