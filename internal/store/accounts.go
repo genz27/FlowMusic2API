@@ -67,8 +67,6 @@ func (s *Store) CreateAccount(ctx context.Context, a domain.Account) (int64, err
 	if a.ProtocolMode == "" {
 		if firstNonEmpty(a.FlowBearer, a.AT, a.AccessToken) != "" && firstNonEmpty(a.RefreshToken, a.ST) == "" {
 			a.ProtocolMode = "bearer"
-		} else if strings.TrimSpace(a.Cookies) != "" && firstNonEmpty(a.FlowBearer, a.AT, a.AccessToken) == "" && firstNonEmpty(a.RefreshToken, a.ST) == "" {
-			a.ProtocolMode = "protocol"
 		} else {
 			a.ProtocolMode = "refresh_token"
 		}

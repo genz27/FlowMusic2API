@@ -1110,10 +1110,6 @@ func readAccountRequest(r *http.Request, defaultAutoRefreshEnabled bool, capabil
 	applyClearFields(&account, account.ClearFields)
 	applyAccountCapabilityRequest(&account, req.ImageEnabled, req.VideoEnabled, req.UpscaleEnabled, capabilityDefaults)
 	account = autoParseCookieJSON(account)
-	// 纯 Cookie 自动检测：填了 cookies 但无 refresh_token 也无 bearer 时强制定为 protocol 模式
-	if strings.TrimSpace(account.Cookies) != "" && strings.TrimSpace(firstNonEmpty(account.RefreshToken, account.ST)) == "" && strings.TrimSpace(firstNonEmpty(account.FlowBearer, account.AT, account.AccessToken)) == "" {
-		account.ProtocolMode = "protocol"
-	}
 	return account, nil
 }
 
