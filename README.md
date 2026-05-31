@@ -245,8 +245,7 @@ go test ./cmd/server -run TestServerProcessSQLiteSmoke -count=1 -v -timeout 90s
 
 ## 致谢
 
-- 项目结构参考 [go2flow-src2](https://github.com/genz27/go2flow-src2)
-- 感谢所有贡献者和使用者的支持
+- - 感谢所有贡献者和使用者的支持
 
 ## Star History
 

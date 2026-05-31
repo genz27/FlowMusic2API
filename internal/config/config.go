@@ -131,7 +131,7 @@ func Load() Config {
 		PostgresMaxOpenConns:    getenvInt("FLOWMUSIC_POSTGRES_MAX_OPEN_CONNS", 32),
 		FlowMusicBaseURL:        strings.TrimRight(getenv("FLOWMUSIC_BASE_URL", "https://www.flowmusic.app"), "/"),
 		SupabaseBaseURL:         strings.TrimRight(getenv("FLOWMUSIC_SUPABASE_BASE_URL", "https://sb.flowmusic.app"), "/"),
-		SupabaseAnonKey:         getenv("FLOWMUSIC_SUPABASE_ANON_KEY", ""),
+		SupabaseAnonKey:         getenv("FLOWMUSIC_SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkbmpjY3FjbWJ4ZWF4YmlkaW5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjEwNjQsImV4cCI6MjA4NzEzNzA2NH0.XCXSuL7Th1xHecfRrP0vAOFmKwJxwBqVFLu06SxtVzg"),
 		GoogleOAuthTokenURL:     getenv("FLOWMUSIC_GOOGLE_OAUTH_TOKEN_URL", "https://oauth2.googleapis.com/token"),
 		GoogleOAuthClientID:     getenv("FLOWMUSIC_GOOGLE_OAUTH_CLIENT_ID", DefaultGoogleOAuthClientID),
 		GoogleOAuthClientSecret: getenv("FLOWMUSIC_GOOGLE_OAUTH_CLIENT_SECRET", ""),

@@ -44,3 +44,4 @@ cookies_*.json
 .DS_Store
 Thumbs.db
 server.pid
+*.zip
