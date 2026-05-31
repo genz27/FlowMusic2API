@@ -507,7 +507,17 @@ func shouldRefreshAccount(account domain.Account, lead time.Duration, now time.T
 		return true
 	}
 	if account.ATExpires != nil {
-		return account.ATExpires.Sub(now) <= lead
+		if account.ATExpires.Sub(now) <= lead {
+			return true
+		}
+		if account.LastRefreshAt != nil {
+			interval := time.Duration(account.RefreshIntervalMins) * time.Minute
+			if interval <= 0 {
+				interval = 60 * time.Minute
+			}
+			return now.Sub(*account.LastRefreshAt) >= interval
+		}
+		return false
 	}
 	interval := time.Duration(account.RefreshIntervalMins) * time.Minute
 	if interval <= 0 {

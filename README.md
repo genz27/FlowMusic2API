@@ -170,6 +170,18 @@ data: [DONE]
 | `bearer` | FlowMusic Bearer 直连 | 直接使用 Bearer，无自动刷新 |
 | `protocol` | FlowMusic Cookie | Cookie 兼容兜底 |
 
+### Cookie 获取方式
+
+管理页支持粘贴 JSON 格式 Cookie 数组，推荐使用以下方式获取：
+
+| 方式 | 说明 |
+|------|------|
+| **Cookie-Editor**（推荐） | Chrome 扩展，打开 flowmusic.app 后点击扩展图标 → Export（JSON 格式）→ 复制全部内容粘贴到管理页 |
+| **EditThisCookie** | Chrome 扩展，打开 flowmusic.app 后点击扩展图标 → 导出为 JSON → 复制 |
+| **手动提取** | F12 → Application → Cookies → 选中 www.flowmusic.app → 全选复制 → 按 JSON 格式整理 |
+
+> 导出的 Cookie JSON 直接粘贴到管理后台「添加账号」的 Cookie 输入框中，系统会自动解析 `sb-sb-auth-token.N` 格式的 Supabase 认证 Cookie 并提取 refresh_token 和 provider_token。
+
 ### Token 刷新流程
 
 1. Bearer 临近过期时自动通过 refresh token 换新

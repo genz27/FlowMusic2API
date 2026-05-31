@@ -469,9 +469,30 @@ func uniqueStrings(values []string) []string {
 
 func noAudioToolCallError(stream ConversationResult) error {
 	hasToolCall, text := streamAudioDiagnostics(stream)
+	sample := ""
+	for _, raw := range stream.RawEvents {
+		if strings.Contains(raw, "audio__create_song") || strings.Contains(raw, "operation_id") || strings.Contains(raw, "clip_id") {
+			if len(raw) > 300 {
+				sample = raw[:300] + "..."
+			} else {
+				sample = raw
+			}
+			break
+		}
+	}
+	if sample == "" && len(stream.RawEvents) > 0 {
+		raw := stream.RawEvents[len(stream.RawEvents)-1]
+		if len(raw) > 300 {
+			sample = raw[:300] + "..."
+		} else {
+			sample = raw
+		}
+	}
 	switch {
-	case hasToolCall && text != "":
-		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id")
+	case hasToolCall && text != "" && sample != "":
+		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id; raw_sample=%s", sample)
+	case hasToolCall && sample != "":
+		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id; raw_sample=%s", sample)
 	case hasToolCall:
 		return fmt.Errorf("flowmusic stream triggered audio__create_song but returned no operation_id or clip_id")
 	case text != "":
