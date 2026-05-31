@@ -10,7 +10,7 @@
 flowmusic2api
 flowmusic2api.exe
 flowmusic2api.exe~
-server
+/server
 server.exe
 *.exe
 *.test
@@ -43,3 +43,4 @@ cookies_*.json
 # OS
 .DS_Store
 Thumbs.db
+server.pid
