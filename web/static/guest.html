@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowMusic2API 游客试用</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config={theme:{extend:{colors:{border:"hsl(0 0% 89%)",background:"hsl(0 0% 100%)",foreground:"hsl(0 0% 3.9%)",muted:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 45.1%)"},primary:{DEFAULT:"hsl(0 0% 9%)",foreground:"hsl(0 0% 98%)"},secondary:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 9%)"}}}}}
+    </script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-foreground antialiased">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 border-b border-border/60 bg-white/80 backdrop-blur-md">
+        <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+            <div class="flex items-center gap-3">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">F</div>
+                <span class="text-base font-bold">FlowMusic2API</span>
+                <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600 border border-blue-200">游客试用</span>
+            </div>
+            <a href="/login" class="inline-flex h-8 items-center rounded-lg border border-border bg-white px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors">管理员登录</a>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+        <!-- 状态栏 -->
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">AI 音乐生成</h1>
+                <p class="mt-0.5 text-sm text-muted-foreground">无需 API Key，直接体验音乐生成</p>
+            </div>
+            <div id="usageBar" class="hidden flex items-center gap-3 rounded-full bg-white border border-border px-3 py-1.5 text-xs shadow-sm">
+                <svg class="h-3.5 w-3.5 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>个人剩余 <strong id="remainingDisplay">-</strong> 次</span>
+                <span id="globalUsageSpan" class="hidden">· 全局剩余 <strong id="globalRemainingDisplay">-</strong> 次</span>
+            </div>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-[380px_1fr] xl:grid-cols-[400px_1fr]">
+            <!-- 左侧：控制面板 -->
+            <section class="space-y-5">
+                <div class="rounded-xl border border-border bg-white shadow-sm">
+                    <div class="border-b border-border px-5 py-3.5">
+                        <h2 class="text-sm font-semibold">生成参数</h2>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-muted-foreground">模型</label>
+                            <select id="modelSelect" class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                                <option value="lyria">lyria</option>
+                                <option value="lyria-fast">lyria-fast</option>
+                                <option value="lyria-pro">lyria-pro</option>
+                                <option value="lyria-pro-fast">lyria-pro-fast</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-muted-foreground">提示词</label>
+                            <textarea id="promptInput" rows="6" class="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30" placeholder="描述音乐风格、语言、人声、歌词主题、情绪和编曲...">一首中文可爱猫猫电子流行歌曲，女声，轻快，副歌抓耳，歌词围绕夜晚的猫咪派对</textarea>
+                        </div>
+                        <div class="flex gap-2.5">
+                            <button id="generateBtn" class="inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                <svg class="mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                生成音乐
+                            </button>
+                            <button id="clearBtn" class="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-white px-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">清空</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-border bg-white shadow-sm">
+                    <div class="border-b border-border px-5 py-3.5">
+                        <h2 class="text-sm font-semibold">提示词示例</h2>
+                    </div>
+                    <div class="p-3 space-y-1">
+                        <button onclick="fillPrompt(this)" class="w-full rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">一首中文可爱猫猫电子流行歌曲，女声，轻快，副歌抓耳</button>
+                        <button onclick="fillPrompt(this)" class="w-full rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">90 年代城市流行风格中文歌曲，温暖怀旧，副歌旋律抓耳</button>
+                        <button onclick="fillPrompt(this)" class="w-full rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">Epic orchestral trailer music, cinematic build-up, powerful brass, 140 bpm</button>
+                        <button onclick="fillPrompt(this)" class="w-full rounded-lg px-3 py-2 text-left text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">Lofi hip hop beats, relaxing, jazz samples, soft piano, 85 bpm</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：结果区 -->
+            <section class="space-y-5">
+                <div class="rounded-xl border border-border bg-white shadow-sm">
+                    <div class="border-b border-border px-5 py-3.5 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold">生成结果</h2>
+                        <span id="statusText" class="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">准备就绪</span>
+                    </div>
+                    <div id="resultContent" class="p-5 space-y-4 text-sm text-muted-foreground max-h-[70vh] overflow-y-auto">
+                        <div class="flex flex-col items-center justify-center py-12 text-center">
+                            <svg class="mb-3 h-10 w-10 text-muted-foreground/40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                            <p class="text-xs text-muted-foreground/60">提交生成后，结果将展示在这里</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="mx-auto max-w-6xl px-4 sm:px-6 pb-6 text-center text-xs text-muted-foreground/60">
+        <a href="https://github.com/genz27/FlowMusic2API" target="_blank" class="hover:text-foreground transition-colors">https://github.com/genz27/FlowMusic2API</a>
+    </footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const escapeHtml=text=>String(text??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const setBusy=busy=>{$('generateBtn').disabled=busy;$('generateBtn').innerHTML=busy?'<svg class="animate-spin mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> 生成中...':'<svg class="mr-1.5 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 生成音乐';$('statusText').textContent=busy?'生成中':'准备就绪';$('statusText').className='inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs '+(busy?'border-blue-200 bg-blue-50 text-blue-600':'border-border bg-muted text-muted-foreground')};
+const normalizeUrl=url=>{const text=String(url||'').trim();if(!text)return'';if(text.startsWith('/tmp/'))return `${location.origin}${text}`;return text};
+const isAudio=url=>/(\.mp3|\.wav|\.m4a|\.aac|\.ogg|\.flac)(\?|$)/i.test(url)||String(url).startsWith('data:audio/');
+const isVideo=url=>/(\.mp4|\.webm|\.mov|\.m3u8|\.avi)(\?|$)/i.test(url)||String(url).startsWith('data:video/');
+const isImage=url=>/(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.avif|\.bmp)(\?|$)/i.test(url)||String(url).startsWith('data:image/');
+
+function fillPrompt(btn){$('promptInput').value=btn.textContent;$('promptInput').focus()}
+
+function parseClips(markdown){
+    const clips=[];let current=null;
+    const lines=String(markdown||'').split(/\r?\n/);
+    for(let i=0;i<lines.length;i++){
+        const line=lines[i];
+        if(line.startsWith('### ')){current={title:line.slice(4).trim(),lyrics:''};clips.push(current);continue}
+        if(!current) continue;
+        const match=line.match(/^- (Audio|WAV|Image|Video|Duration|Sound Prompt):\s*(.*)$/i);
+        if(match){const k=match[1].toLowerCase(),v=match[2].trim();if(k==='audio')current.audio=normalizeUrl(v);if(k==='wav')current.wav=normalizeUrl(v);if(k==='image')current.image=normalizeUrl(v);if(k==='video')current.video=normalizeUrl(v);if(k==='duration')current.duration=v;if(k==='sound prompt')current.soundPrompt=v;continue}
+        if(line.trim()==='- Lyrics:'){while(i+1<lines.length&&lines[i+1].trim()==='')i++;if(i+1<lines.length&&lines[i+1].startsWith('```')){i+=2;const lyr=[];while(i<lines.length&&!lines[i].startsWith('```')){lyr.push(lines[i]);i++}current.lyrics=lyr.join('\n').trim()}}
+    }
+    return clips;
+}
+
+function mediaBlock(label,url){
+    if(!url) return '';
+    const safe=escapeHtml(url);let preview='';
+    if(isAudio(url)) preview=`<audio controls preload="metadata" src="${safe}" class="w-full rounded-lg"></audio>`;
+    else if(isVideo(url)) preview=`<video controls preload="metadata" src="${safe}" class="max-h-80 w-full rounded-lg border border-border bg-black"></video>`;
+    else if(isImage(url)) preview=`<a href="${safe}" target="_blank" class="block"><img src="${safe}" alt="${escapeHtml(label)}" loading="lazy" decoding="async" class="max-h-80 rounded-lg border border-border object-contain bg-muted/30"></a>`;
+    return `<div class="space-y-2"><p class="text-xs font-medium text-foreground">${escapeHtml(label)}</p><a href="${safe}" target="_blank" class="break-all text-xs text-blue-600 hover:underline">${safe}</a>${preview}</div>`;
+}
+
+function renderResult(markdown){
+    const box=$('resultContent');const clips=parseClips(markdown);
+    if(!clips.length){box.innerHTML=`<pre class="whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/30 p-3 text-xs">${escapeHtml(markdown||'无结果')}</pre>`;return}
+    box.innerHTML=clips.map((clip,i)=>{
+        const media=[mediaBlock('Audio',clip.audio),mediaBlock('WAV',clip.wav),mediaBlock('封面',clip.image),mediaBlock('视频',clip.video)].filter(Boolean).join('');
+        const meta=[clip.duration?`<span class="inline-flex items-center gap-1"><svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${escapeHtml(clip.duration)}</span>`:'',clip.soundPrompt?`<span class="inline-flex items-center gap-1"><svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>${escapeHtml(clip.soundPrompt)}</span>`:''].filter(Boolean).join('');
+        const lyrics=clip.lyrics?`<details class="rounded-lg border border-border bg-muted/20"><summary class="cursor-pointer px-3 py-2 text-xs font-medium text-foreground select-none">歌词</summary><pre class="whitespace-pre-wrap break-words p-3 pt-0 text-xs leading-relaxed text-muted-foreground">${escapeHtml(clip.lyrics)}</pre></details>`:'';
+        return `<article class="rounded-lg border border-border bg-background overflow-hidden">
+            <div class="p-4">
+                <h3 class="text-sm font-semibold text-foreground">${i+1}. ${escapeHtml(clip.title||`clip-${i+1}`)}</h3>
+                ${meta?`<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">${meta}</div>`:''}
+                ${media?`<div class="mt-3 grid gap-3 sm:grid-cols-2">${media}</div>`:''}
+                ${lyrics?`<div class="mt-3">${lyrics}</div>`:''}
+            </div>
+        </article>`;
+    }).join('');
+}
+
+async function loadConfig(){
+    try{
+        const resp=await fetch('/api/guest/config');const data=await resp.json();
+        if(!data.guest_trial_enabled){
+            $('statusText').textContent='未开启';$('statusText').className='inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs text-amber-600';
+            $('resultContent').innerHTML='<div class="flex flex-col items-center justify-center py-12 text-center"><p class="text-sm text-muted-foreground">游客试用页未开启，请联系管理员。</p></div>';
+            $('generateBtn').disabled=true;return
+        }
+        const models=Array.isArray(data.models)?data.models:[];
+        if(models.length){$('modelSelect').innerHTML=models.map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.id)}</option>`).join('')}
+        if(data.max_daily_guest_uses>0||data.guest_global_daily_limit>0){
+            $('usageBar').classList.remove('hidden');
+            const rem=typeof data.remaining_daily_uses==='number'?data.remaining_daily_uses:'-';
+            $('remainingDisplay').textContent=rem
+        }
+        if(data.guest_global_daily_limit>0){
+            $('globalUsageSpan').classList.remove('hidden');
+            const grem=typeof data.remaining_global_daily_uses==='number'?data.remaining_global_daily_uses:'-';
+            $('globalRemainingDisplay').textContent=grem
+        }
+    }catch(e){$('statusText').textContent='配置错误';$('statusText').className='inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs text-red-600';console.error(e)}
+}
+
+async function generate(){
+    const prompt=$('promptInput').value.trim();if(!prompt)return alert('请输入提示词');
+    setBusy(true);
+    $('resultContent').innerHTML='<div class="flex items-center justify-center py-8"><svg class="animate-spin h-6 w-6 text-muted-foreground/40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg><span class="ml-2 text-xs text-muted-foreground/60">正在生成...</span></div>';
+    let content='';
+    try{
+        const resp=await fetch('/api/guest/chat/completions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:$('modelSelect').value,messages:[{role:'user',content:prompt}],stream:true})});
+        if(!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+        const reader=resp.body.getReader();const decoder=new TextDecoder();let buffer='';
+        while(true){
+            const {done,value}=await reader.read();if(done)break;
+            buffer+=decoder.decode(value,{stream:true});const lines=buffer.split('\n');buffer=lines.pop()||'';
+            for(const line of lines){
+                if(!line.startsWith('data: '))continue;const raw=line.slice(6).trim();if(!raw||raw==='[DONE]')continue;
+                const data=JSON.parse(raw);if(data.error)throw new Error(data.error.message||'生成失败');
+                const delta=data.choices&&data.choices[0]&&data.choices[0].delta||{};
+                if(delta.reasoning_content){const r=delta.reasoning_content.trimEnd();if(r){$('statusText').textContent=r.length>30?r.slice(0,30)+'...':r;$('statusText').className='inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs text-blue-600'}}
+                if(delta.content) content+=delta.content;
+            }
+        }
+        renderResult(content);$('statusText').textContent='完成';$('statusText').className='inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 text-xs text-green-600';
+    }catch(e){
+        $('statusText').textContent='失败';$('statusText').className='inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs text-red-600';
+        $('resultContent').innerHTML=`<div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-start gap-2"><svg class="mt-0.5 h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>${escapeHtml(e.message)}</div>`;
+    }finally{setBusy(false);await loadConfig()}
+}
+
+$('generateBtn').addEventListener('click',generate);
+$('clearBtn').addEventListener('click',()=>{$('resultContent').innerHTML='<div class="flex flex-col items-center justify-center py-12 text-center"><svg class="mb-3 h-10 w-10 text-muted-foreground/40" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><p class="text-xs text-muted-foreground/60">提交生成后，结果将展示在这里</p></div>';$('statusText').textContent='准备就绪';$('statusText').className='inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs text-muted-foreground'});
+loadConfig();
+</script>
+</body>
+</html>

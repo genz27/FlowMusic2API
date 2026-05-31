@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowMusic2API 模型测试</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",system-ui,sans-serif;background:#0f172a;color:#e5e7eb;min-height:100vh}.container{max-width:960px;margin:0 auto;padding:28px}h1{margin:0 0 8px;color:#93c5fd}.subtitle{margin:0 0 24px;color:#94a3b8}.card{background:#111827;border:1px solid #334155;border-radius:16px;padding:18px;margin-bottom:16px}.row{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:center;margin-bottom:12px}input,textarea,select{width:100%;border:1px solid #334155;border-radius:10px;background:#020617;color:#e5e7eb;padding:10px 12px}textarea{min-height:120px;resize:vertical}.actions{display:flex;gap:12px;flex-wrap:wrap}button{border:0;border-radius:10px;background:#2563eb;color:#fff;padding:10px 16px;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#334155}.log{white-space:pre-wrap;word-break:break-word;background:#020617;border:1px solid #334155;border-radius:12px;padding:14px;min-height:160px}.result{display:grid;gap:12px;margin-top:12px}.result audio,.result video{width:100%}.result video{max-height:420px;border-radius:12px;background:#000}.result a{color:#93c5fd}.pill{display:inline-flex;border:1px solid #334155;border-radius:999px;padding:3px 10px;color:#bfdbfe;font-size:12px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>FlowMusic2API 模型测试</h1>
+  <p class="subtitle">调用当前服务的 OpenAI 兼容接口，测试 FlowMusic 音乐生成。</p>
+
+  <div class="card">
+    <div class="row"><label>API Key</label><input type="password" id="apiKey" placeholder="输入 API Key"></div>
+    <div class="row"><label>Base URL</label><input id="baseUrl" value="http://localhost:8000"></div>
+    <div class="row"><label>模型</label><select id="modelSelect"><option value="lyria">lyria</option><option value="lyria-fast">lyria-fast</option><option value="lyria-pro">lyria-pro</option><option value="lyria-pro-fast">lyria-pro-fast</option></select></div>
+    <div class="row"><label>提示词</label><textarea id="promptInput">一首 90 年代城市流行风格的中文歌曲，温暖、怀旧，副歌旋律抓耳</textarea></div>
+    <div class="actions">
+      <button id="loadModelsBtn">加载模型</button>
+      <button id="generateBtn">生成音乐</button>
+      <button class="secondary" id="clearBtn">清空输出</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="pill" id="statusText">等待中</div>
+    <div class="log" id="outputLog">准备就绪。</div>
+    <div class="result" id="outputResult"></div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function log(text){$('outputLog').textContent+=(($('outputLog').textContent==='准备就绪。')?'':'\n')+text}
+function apiBase(){return ($('baseUrl').value||'').replace(/\/+$/,'')}
+function headers(){return {Authorization:`Bearer ${$('apiKey').value.trim()}`,'Content-Type':'application/json'}}
+function setBusy(busy){$('generateBtn').disabled=busy;$('loadModelsBtn').disabled=busy;$('statusText').textContent=busy?'请求中':'等待中'}
+function escapeHtml(text){return String(text).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function isAudio(url){return /(\.mp3|\.wav|\.m4a|\.aac|\.ogg|\.flac)(\?|$)/i.test(url)||url.includes('/audio/')}
+function isVideo(url){return /(\.mp4|\.webm|\.mov|\.m3u8|\.avi)(\?|$)/i.test(url)||url.includes('/video/')}
+function normalizeResultUrl(url){const text=String(url||'').trim();if(!text)return'';if(text.startsWith('/tmp/'))return `${apiBase()}${text}`;return text}
+function render(content){const box=$('outputResult');box.innerHTML='';const urls=[...String(content||'').matchAll(/(?:https?:\/\/|\/tmp\/)[^\s)<>"']+/g)].map(m=>normalizeResultUrl(m[0]));urls.forEach(url=>{const safe=escapeHtml(url);if(isAudio(url)){box.insertAdjacentHTML('beforeend',`<audio controls src="${safe}"></audio>`)}else if(isVideo(url)){box.insertAdjacentHTML('beforeend',`<video controls src="${safe}"></video><a href="${safe}" target="_blank">${safe}</a>`)}else{box.insertAdjacentHTML('beforeend',`<a href="${safe}" target="_blank">${safe}</a>`)}});if(!urls.length&&content)box.textContent=content}
+async function loadModels(){setBusy(true);try{const resp=await fetch(`${apiBase()}/v1/models`,{headers:headers()});if(!resp.ok)throw new Error(`HTTP ${resp.status}`);const data=await resp.json();const models=Array.isArray(data.data)?data.data:[];$('modelSelect').innerHTML=models.map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.id)}</option>`).join('')||$('modelSelect').innerHTML;log(`已加载 ${models.length} 个模型`)}catch(e){log(`加载模型失败: ${e.message}`)}finally{setBusy(false)}}
+async function generate(){if(!$('apiKey').value.trim())return alert('请先填写 API Key');setBusy(true);$('outputLog').textContent='开始生成...';$('outputResult').innerHTML='';try{const resp=await fetch(`${apiBase()}/v1/chat/completions`,{method:'POST',headers:headers(),body:JSON.stringify({model:$('modelSelect').value,messages:[{role:'user',content:$('promptInput').value.trim()}],stream:true})});if(!resp.ok)throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);const reader=resp.body.getReader();const decoder=new TextDecoder();let buffer='',content='';while(true){const {done,value}=await reader.read();if(done)break;buffer+=decoder.decode(value,{stream:true});const lines=buffer.split('\n');buffer=lines.pop()||'';for(const line of lines){if(!line.startsWith('data: '))continue;const raw=line.slice(6).trim();if(!raw||raw==='[DONE]')continue;const data=JSON.parse(raw);const delta=data.choices&&data.choices[0]&&data.choices[0].delta||{};const progress=delta.reasoning_content||'';const chunk=delta.content||'';if(progress)log(progress);if(chunk){content+=chunk;log(chunk)}}}render(content);$('statusText').textContent='完成'}catch(e){log(`生成失败: ${e.message}`);$('statusText').textContent='失败'}finally{setBusy(false)}}
+$('loadModelsBtn').onclick=loadModels;$('generateBtn').onclick=generate;$('clearBtn').onclick=()=>{$('outputLog').textContent='准备就绪。';$('outputResult').innerHTML='';$('statusText').textContent='等待中'};
+</script>
+</body>
+</html>

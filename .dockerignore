@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Playwright
+.playwright-mcp/
+
+# Build artifacts
+*.exe
+*.test
+
+# Database
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Cache / temp
+tmp/
+uploads/
+
+# Logs
+*.log
+
+# Cookies / HAR (personal data)
+cookie.txt
+cookie.json
+cookies_*.json
+*.har
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes

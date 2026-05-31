@@ -1,0 +1,45 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Playwright
+.playwright-mcp/
+
+# Build artifacts
+flowmusic2api
+flowmusic2api.exe
+flowmusic2api.exe~
+server
+server.exe
+*.exe
+*.test
+
+# Database
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Cache / temp
+tmp/
+uploads/
+
+# Logs
+*.log
+
+# Cookies / HAR (personal data)
+cookie.txt
+cookie.json
+cookies_*.json
+*.har
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

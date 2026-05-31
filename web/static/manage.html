@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理控制台 - FlowMusic2API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slide-up{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+        .animate-slide-up{animation:slide-up .3s ease-out}
+        .tab-btn{transition:all .2s ease}
+        .line-clamp-2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+        .token-table-shell{overflow:hidden}
+        .token-table th,.token-table td{min-width:0}
+        .token-table-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.25rem}
+        .token-table-actions button{border:1px solid transparent}
+        .token-table-actions button:hover{border-color:hsl(0 0% 89%)}
+        @media (max-width:1100px){
+            .token-table{font-size:12px}
+            .token-table th,.token-table td{padding-left:.375rem;padding-right:.375rem}
+            .token-table-actions button{height:1.625rem;padding-left:.375rem;padding-right:.375rem}
+        }
+    </style>
+    <script>
+        tailwind.config={theme:{extend:{colors:{border:"hsl(0 0% 89%)",input:"hsl(0 0% 89%)",ring:"hsl(0 0% 3.9%)",background:"hsl(0 0% 100%)",foreground:"hsl(0 0% 3.9%)",primary:{DEFAULT:"hsl(0 0% 9%)",foreground:"hsl(0 0% 98%)"},secondary:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 9%)"},muted:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 45.1%)"},destructive:{DEFAULT:"hsl(0 84.2% 60.2%)",foreground:"hsl(0 0% 98%)"}}}}}
+    </script>
+</head>
+<body class="h-full bg-background text-foreground antialiased">
+    <!-- 导航栏 -->
+    <header class="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur">
+        <div class="mx-auto flex h-14 max-w-7xl items-center px-6">
+            <div class="mr-4 flex items-baseline gap-3">
+                <span class="font-bold text-xl">FlowMusic2API</span>
+            </div>
+            <div class="flex flex-1 items-center justify-end gap-3">
+                <button onclick="logout()" class="inline-flex items-center justify-center text-xs transition-colors hover:bg-accent hover:text-accent-foreground h-7 px-2.5 gap-1">
+                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    退出
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-6 py-6">
+        <!-- Tab 导航 -->
+        <div class="border-b border-border mb-6">
+            <nav class="flex space-x-8">
+                <button onclick="switchTab('tokens')" id="tabTokens" class="tab-btn border-b-2 border-primary text-sm font-medium py-3 px-1">Token 管理</button>
+                <button onclick="switchTab('settings')" id="tabSettings" class="tab-btn border-b-2 border-transparent text-sm font-medium py-3 px-1">系统配置</button>
+                <button onclick="switchTab('logs')" id="tabLogs" class="tab-btn border-b-2 border-transparent text-sm font-medium py-3 px-1">请求日志</button>
+                <button onclick="switchTab('test')" id="tabTest" class="tab-btn border-b-2 border-transparent text-sm font-medium py-3 px-1">模型测试</button>
+            </nav>
+        </div>
+
+        <!-- Token 管理面板 -->
+        <div id="panelTokens">
+            <!-- 统计卡片 -->
+            <div class="grid gap-4 grid-cols-2 md:grid-cols-4 mb-6">
+                <div class="rounded-lg border border-border bg-background p-4">
+                    <p class="text-sm font-medium text-muted-foreground mb-2">Token 总数</p>
+                    <h3 class="text-xl font-bold" id="statTotal">-</h3>
+                </div>
+                <div class="rounded-lg border border-border bg-background p-4">
+                    <p class="text-sm font-medium text-muted-foreground mb-2">活跃 Token</p>
+                    <h3 class="text-xl font-bold text-green-600" id="statActive">-</h3>
+                </div>
+                <div class="rounded-lg border border-border bg-background p-4">
+                    <p class="text-sm font-medium text-muted-foreground mb-2">今日歌曲/总歌曲</p>
+                    <h3 class="text-xl font-bold text-blue-600" id="statMusic">-</h3>
+                </div>
+                <div class="rounded-lg border border-border bg-background p-4">
+                    <p class="text-sm font-medium text-muted-foreground mb-2">今日错误/总错误</p>
+                    <h3 class="text-xl font-bold text-destructive" id="statErrors">-</h3>
+                </div>
+            </div>
+
+            <!-- Token 列表 -->
+            <div class="rounded-lg border border-border bg-background overflow-hidden shadow-sm">
+                <div class="flex flex-col gap-3 p-4 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+                    <h3 class="text-lg font-semibold">Token 列表</h3>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <!-- 自动刷新AT标签和开关 -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-muted-foreground">自动刷新AT</span>
+                            <div class="relative inline-flex items-center group">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="atAutoRefreshToggle" onchange="toggleATAutoRefresh()" class="sr-only peer">
+                                    <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                                <!-- 悬浮提示 -->
+                                <div class="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Bearer 距离过期较近时自动使用 refresh token 更新
+                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="refreshTokens()" class="inline-flex items-center justify-center rounded-md transition-colors hover:bg-accent h-8 w-8" title="刷新">
+                            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                        </button>
+                        <button onclick="exportTokens()" class="inline-flex items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 h-8 px-3" title="导出所有Token">
+                            <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            <span class="text-sm font-medium">导出</span>
+                        </button>
+                        <button onclick="openImportModal()" class="inline-flex items-center justify-center rounded-md bg-green-600 text-white hover:bg-green-700 h-8 px-3" title="导入Token">
+                            <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <span class="text-sm font-medium">导入</span>
+                        </button>
+                        <button onclick="openAddModal()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3">
+                            <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            <span class="text-sm font-medium">新增</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="token-table-shell relative w-full">
+                    <table class="token-table w-full table-fixed text-sm">
+                        <colgroup>
+                            <col style="width:30%">
+                            <col style="width:7%">
+                            <col style="width:10%">
+                            <col style="width:8%">
+                            <col style="width:8%">
+                            <col style="width:8%">
+                            <col style="width:7%">
+                            <col style="width:22%">
+                        </colgroup>
+                        <thead>
+                            <tr class="border-b border-border">
+                                <th class="h-10 px-2.5 text-left align-middle font-medium text-muted-foreground">邮箱</th>
+                                <th class="h-10 px-2.5 text-center align-middle font-medium text-muted-foreground">状态</th>
+                                <th class="h-10 px-2.5 text-center align-middle font-medium text-muted-foreground">Bearer 过期</th>
+                                <th class="h-10 px-2.5 text-center align-middle font-medium text-muted-foreground">余额</th>
+                                <th class="h-10 px-2.5 text-center align-middle font-medium text-muted-foreground">套餐</th>
+                                <th class="h-10 px-2.5 text-center align-middle font-medium text-muted-foreground">歌曲</th>
+                                <th class="h-10 px-2.5 text-center align-middle font-medium text-muted-foreground">错误</th>
+                                <th class="h-10 px-2.5 text-right align-middle font-medium text-muted-foreground">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tokenTableBody" class="divide-y divide-border">
+                            <!-- 动态填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统配置面板 -->
+        <div id="panelSettings" class="hidden">
+            <div class="grid gap-6 lg:grid-cols-2">
+                <!-- 安全配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">安全配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">管理员用户名</label>
+                            <input id="cfgAdminUsername" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                            <p class="text-xs text-muted-foreground mt-1">管理员用户名</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">旧密码</label>
+                            <input id="cfgOldPassword" type="password" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="输入旧密码">
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">新密码</label>
+                            <input id="cfgNewPassword" type="password" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="输入新密码">
+                        </div>
+                    </div>
+                    <button onclick="updateAdminPassword()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">修改密码</button>
+                </div>
+
+                <!-- API 密钥配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">API 密钥配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">当前 API Key</label>
+                            <input id="cfgCurrentAPIKey" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" readonly disabled>
+                            <p class="text-xs text-muted-foreground mt-1">当前使用的 API Key（只读）</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">新 API Key</label>
+                            <input id="cfgNewAPIKey" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="输入新的 API Key">
+                            <p class="text-xs text-muted-foreground mt-1">用于客户端调用 API 的密钥</p>
+                        </div>
+                    </div>
+                    <button onclick="updateAPIKey()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">更新 API Key</button>
+                </div>
+
+                <!-- 代理配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">代理配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="cfgProxyEnabled" class="h-4 w-4 rounded border-input">
+                                <span class="text-sm font-medium">启用请求代理</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">请求代理地址</label>
+                            <input id="cfgProxyUrl" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080">
+                            <p class="text-xs text-muted-foreground mt-1">支持 HTTP 和 SOCKS5 代理</p>
+                        </div>
+                        <div class="pt-3 border-t border-border">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="cfgMediaProxyEnabled" class="h-4 w-4 rounded border-input" onchange="toggleMediaProxyInput()">
+                                <span class="text-sm font-medium">媒体上传下载代理</span>
+                            </label>
+                            <p class="text-xs text-muted-foreground mt-1">启用后，音频、封面和视频等媒体缓存下载可单独走该代理</p>
+                        </div>
+                        <div id="mediaProxyUrlInput" class="hidden">
+                            <label class="text-sm font-medium mb-2 block">媒体上传下载代理地址</label>
+                            <input id="cfgMediaProxyUrl" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="http://127.0.0.1:7897 或 socks5://127.0.0.1:1080">
+                            <p class="text-xs text-muted-foreground mt-1">支持 HTTP 和 SOCKS5 代理</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-4">
+                        <button id="btnTestProxy" onclick="testProxyConfig()" class="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent h-9 px-4">测试代理</button>
+                        <button onclick="saveProxyConfig()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4">保存配置</button>
+                    </div>
+                    <p id="proxyTestResult" class="text-xs text-muted-foreground mt-2">测试目标：<code class="bg-muted px-1 py-0.5 rounded">https://www.flowmusic.app/</code></p>
+                </div>
+
+                <!-- 生成配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">生成配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">音乐生成超时时间（秒）</label>
+                            <input id="cfgImageTimeout" type="number" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="300" min="60" max="3600">
+                            <p class="text-xs text-muted-foreground mt-1">音乐生成提交与流式等待超时时间，范围：60-3600 秒（1分钟-1小时）</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">素材轮询超时时间（秒）</label>
+                            <input id="cfgVideoTimeout" type="number" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="1500" min="60" max="7200">
+                            <p class="text-xs text-muted-foreground mt-1">歌曲音频、封面和视频素材轮询超时时间，范围：60-7200 秒（1分钟-2小时）</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">最大重试次数</label>
+                            <input id="cfgMaxRetries" type="number" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="3" min="1">
+                            <p class="text-xs text-muted-foreground mt-1">生成、上传、轮询等请求失败时的最大重试次数，最小值为 1</p>
+                        </div>
+                    </div>
+                    <button onclick="saveGenerationTimeout()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">保存配置</button>
+                </div>
+
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">Token 轮询配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">轮询模式</label>
+                            <select id="cfgCallLogicMode" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                <option value="default">智能选择（低错误优先）</option>
+                                <option value="polling">顺序轮询</option>
+                            </select>
+                            <p class="text-xs text-muted-foreground mt-1">随机轮询使用默认负载优先策略；顺序轮询会按可用Token的稳定顺序依次使用，全部轮完后再开始下一轮。</p>
+                        </div>
+                    </div>
+                    <button onclick="saveCallLogicConfig()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">保存配置</button>
+                </div>
+
+                <!-- 错误处理配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">错误处理配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">错误封禁阈值</label>
+                            <input id="cfgErrorBan" type="number" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="3">
+                            <p class="text-xs text-muted-foreground mt-1">Token 连续错误达到此次数后自动禁用</p>
+                        </div>
+                    </div>
+                    <button onclick="saveAdminConfig()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">保存配置</button>
+                </div>
+
+                <!-- 游客试用配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">游客试用配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="cfgGuestTrialEnabled" class="h-4 w-4 rounded border-input">
+                                <span class="text-sm font-medium">启用游客试用页</span>
+                            </label>
+                            <p class="text-xs text-muted-foreground mt-1">开启后访问 / 将展示无需 API Key 的试用页；关闭后 / 仍跳转到登录页。</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">每 IP 每日限制次数</label>
+                            <input id="cfgGuestDailyLimit" type="number" min="0" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="3">
+                            <p class="text-xs text-muted-foreground mt-1">每个 IP 每天最多可生成次数，0 表示不限制</p>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium mb-2 block">全局每日限制次数</label>
+                            <input id="cfgGuestGlobalDailyLimit" type="number" min="0" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="0">
+                            <p class="text-xs text-muted-foreground mt-1">所有 IP 合计每天最多生成次数，0 表示不限制</p>
+                        </div>
+                    </div>
+                    <button onclick="saveGuestTrialConfig()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full mt-4">保存游客配置</button>
+                </div>
+
+                <!-- 缓存配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">缓存配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="cfgCacheEnabled" class="h-4 w-4 rounded border-input" onchange="toggleCacheOptions()">
+                                <span class="text-sm font-medium">启用缓存</span>
+                            </label>
+                            <p class="text-xs text-muted-foreground mt-1">关闭后，生成的音频、封面和视频将直接输出原始链接，不会缓存到本地</p>
+                        </div>
+
+                        <!-- 缓存配置选项 -->
+                        <div id="cacheOptions" style="display: none;" class="space-y-4 pt-4 border-t border-border">
+                            <div>
+                                <label class="text-sm font-medium mb-2 block">缓存存储方式</label>
+                                <select id="cfgCacheStorageMode" onchange="toggleCacheStorageMode()" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                    <option value="local">本地磁盘</option>
+                                    <option value="s3">S3 对象存储</option>
+                                    <option value="r2">Cloudflare R2</option>
+                                </select>
+                                <p class="text-xs text-muted-foreground mt-1">本地模式走服务器 tmp 目录；S3/R2 均使用 S3 兼容协议。选择 R2 时无需填写公网访问前缀，返回对象存储直链。</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium mb-2 block">缓存超时时间（秒）</label>
+                                <input id="cfgCacheTimeout" type="number" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="7200" min="0" max="86400">
+                                <p class="text-xs text-muted-foreground mt-1">文件缓存超时时间，范围：0-86400 秒，其中 0 表示永不过期，不自动删除缓存文件</p>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium mb-2 block">缓存文件访问域名</label>
+                                <input id="cfgCacheBaseUrl" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="https://yourdomain.com">
+                                <p class="text-xs text-muted-foreground mt-1">留空则使用服务器地址，例如：https://yourdomain.com</p>
+                            </div>
+                            <div id="cacheEffectiveUrl" class="rounded-md bg-muted p-3 hidden">
+                                <p class="text-xs text-muted-foreground">
+                                    <strong>🌐 当前生效的访问地址：</strong><code id="cacheEffectiveUrlValue" class="bg-background px-1 py-0.5 rounded"></code>
+                                </p>
+                            </div>
+                            <div id="cacheS3Options" class="hidden space-y-4 rounded-md border border-border bg-muted/30 p-4">
+                                <div>
+                                    <p id="cacheObjectStorageTitle" class="text-sm font-semibold">S3 / 兼容对象存储参数</p>
+                                    <p id="cacheObjectStorageHelp" class="text-xs text-muted-foreground mt-1">这些字段仍按 S3 协议命名；R2 使用 Cloudflare 提供的 S3 API Endpoint、Access Key 和 Secret Key。</p>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label id="cfgS3EndpointLabel" class="text-sm font-medium mb-2 block">S3 Endpoint</label>
+                                        <input id="cfgS3Endpoint" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="s3.amazonaws.com 或 minio.example.com">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">Region</label>
+                                        <input id="cfgS3Region" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="ap-east-1">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">Bucket</label>
+                                        <input id="cfgS3Bucket" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="flowmusic-cache">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">Prefix</label>
+                                        <input id="cfgS3Prefix" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="flow-assets">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">Access Key</label>
+                                        <input id="cfgS3AccessKey" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="AKIA...">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">Secret Key</label>
+                                        <input id="cfgS3SecretKey" type="password" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="输入 S3 Secret Key">
+                                    </div>
+                                </div>
+                                <div id="cachePublicBaseGroup">
+                                    <label id="cfgS3PublicBaseLabel" class="text-sm font-medium mb-2 block">S3 公网访问前缀</label>
+                                    <input id="cfgS3PublicBaseUrl" type="text" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="https://cdn.example.com/cache">
+                                    <p id="cfgS3PublicBaseHelp" class="text-xs text-muted-foreground mt-1">可选。填写后优先用于外部返回地址，适合 CDN 或对象存储自定义域名。</p>
+                                </div>
+                                <div class="flex flex-wrap gap-4">
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="cfgS3UseSSL" class="h-4 w-4 rounded border-input">
+                                        <span class="text-sm font-medium">启用 HTTPS / SSL</span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="cfgS3ForcePathStyle" class="h-4 w-4 rounded border-input">
+                                        <span class="text-sm font-medium">强制 Path Style</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <button onclick="saveCacheConfig()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 w-full">保存配置</button>
+                        <button onclick="testCacheConfig()" class="inline-flex items-center justify-center rounded-md border border-border bg-background hover:bg-muted h-9 px-4 w-full">测试缓存配置</button>
+                    </div>
+                </div>
+
+                <!-- 调试配置 -->
+                <div class="rounded-lg border border-border bg-background p-6 flex flex-col">
+                    <h3 class="text-lg font-semibold mb-4">调试配置</h3>
+                    <div class="space-y-4 flex-1">
+                        <div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="cfgDebugEnabled" class="h-4 w-4 rounded border-input" onchange="toggleDebugMode()">
+                                <span class="text-sm font-medium">启用调试模式</span>
+                            </label>
+                            <p class="text-xs text-muted-foreground mt-2">开启后，管理页日志接口会保留更详细的请求排查信息；仅建议临时排错时开启。</p>
+                        </div>
+                        <div class="rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-3 border border-yellow-200 dark:border-yellow-800">
+                            <p class="text-xs text-yellow-800 dark:text-yellow-200">
+                                ⚠️ <strong>注意：</strong>调试模式会产生非常非常大量的日志，仅限Debug时候开启，否则磁盘boom
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-muted-foreground text-center mt-4 h-9 flex items-center justify-center">✅ 开关状态自动保存</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 请求日志面板 -->
+        <div id="panelLogs" class="hidden">
+            <div class="space-y-4">
+                <div class="rounded-lg border border-border bg-background">
+                    <div class="flex flex-col gap-3 p-4 border-b border-border md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold">请求日志</h3>
+                            <p class="mt-1 text-xs text-muted-foreground">当前页面会自动刷新运行中任务和最近完成日志，便于观察实时状态。</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="clearAllLogs()" class="inline-flex items-center justify-center rounded-md transition-colors hover:bg-red-50 hover:text-red-700 h-8 px-3 text-sm" title="清空日志">
+                                <svg class="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                清空
+                            </button>
+                            <button onclick="refreshLogs()" class="inline-flex items-center justify-center rounded-md transition-colors hover:bg-accent h-8 w-8" title="刷新">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid gap-3 p-4 md:grid-cols-2">
+                        <div class="rounded-lg border border-border bg-muted/20 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">实时任务</p>
+                                    <p class="mt-2 text-2xl font-semibold" id="activeTasksCount">0</p>
+                                </div>
+                                <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">自动刷新中</span>
+                            </div>
+                            <p class="mt-3 text-xs leading-5 text-muted-foreground">展示当前仍在运行的生成任务，含模型、阶段、进度和运行时长。</p>
+                        </div>
+                        <div class="rounded-lg border border-border bg-muted/20 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">完成日志</p>
+                                    <p class="mt-2 text-2xl font-semibold" id="completedLogsCount">0</p>
+                                </div>
+                                <span class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">最近 100 条</span>
+                            </div>
+                            <p class="mt-3 text-xs leading-5 text-muted-foreground">列表中保留最近完成或失败的请求，点开详情可查看完整请求和返回内容。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-border bg-background">
+                    <div class="flex flex-col gap-2 p-4 border-b border-border md:flex-row md:items-center md:justify-between">
+                        <div class="flex items-center gap-3">
+                            <h4 class="text-base font-semibold">正在进行的任务</h4>
+                            <span id="activeTasksBadge" class="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">0</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">仅展示当前内存中的运行中任务，任务结束后会自动移出。</p>
+                    </div>
+                    <div class="max-h-[520px] overflow-y-auto overflow-x-hidden p-4">
+                        <div id="activeTasksList" class="grid gap-3 lg:grid-cols-2">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-border bg-background">
+                    <div class="flex flex-col gap-2 p-4 border-b border-border md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h4 class="text-base font-semibold">最近完成日志</h4>
+                            <p class="mt-1 text-xs text-muted-foreground">主列表仅展示核心字段，详细结果放到“详情”里查看，避免横向滚动。</p>
+                        </div>
+                    </div>
+                    <div class="relative w-full max-h-[600px] overflow-y-auto overflow-x-hidden">
+                        <table class="w-full table-fixed text-sm">
+                            <colgroup>
+                                <col class="w-[42%]">
+                                <col class="w-[10%]">
+                                <col class="w-[8%]">
+                                <col class="w-[10%]">
+                                <col class="w-[10%]">
+                                <col class="w-[14%]">
+                                <col class="w-[6%]">
+                            </colgroup>
+                            <thead class="sticky top-0 bg-background">
+                                <tr class="border-b border-border">
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground">&#25805;&#20316;</th>
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground">&#29366;&#24577;</th>
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground whitespace-nowrap">&#36827;&#24230;</th>
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground whitespace-nowrap">&#29366;&#24577;&#30721;</th>
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground">&#32791;&#26102;</th>
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground">&#26102;&#38388;</th>
+                                    <th class="h-10 px-3 text-left align-middle font-medium text-muted-foreground">&#35814;&#24773;</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody" class="divide-y divide-border">
+                                <!-- 动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模型测试面板 -->
+        <div id="panelTest" class="hidden">
+            <div class="space-y-6">
+                <div class="rounded-lg border border-border bg-background p-4">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold">模型测试</h3>
+                            <p class="mt-1 text-xs text-muted-foreground">直接使用系统当前 API Key 和当前服务地址，支持单次生成和并发请求测试。</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="testModelCount" class="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">0 个模型</span>
+                            <button onclick="loadTestModels(true)" class="inline-flex items-center justify-center rounded-md transition-colors hover:bg-accent h-8 px-3 text-sm" title="刷新模型列表">刷新模型</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-6 lg:grid-cols-[minmax(280px,340px)_1fr]">
+                    <div class="rounded-lg border border-border bg-background">
+                        <div class="border-b border-border p-4">
+                            <h4 class="text-base font-semibold">可测试模型</h4>
+                            <p class="mt-1 text-xs text-muted-foreground">已合并基础模型和别名模型。</p>
+                        </div>
+                        <div id="testModelList" class="max-h-[760px] overflow-y-auto overflow-x-hidden p-3">
+                            <div class="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">打开测试页后自动加载模型。</div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6 min-w-0">
+                        <div class="rounded-lg border border-border bg-background p-5">
+                            <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                <div class="min-w-0">
+                                    <h4 id="testSelectedModelName" class="truncate text-base font-semibold">请选择模型</h4>
+                                    <p id="testSelectedModelInfo" class="mt-1 text-xs text-muted-foreground">从左侧选择任意模型后开始测试。</p>
+                                </div>
+                                <span id="testSelectedModelType" class="inline-flex shrink-0 items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">未选择</span>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-sm font-medium mb-2 block">提示词</label>
+                                    <textarea id="testPromptInput" rows="4" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y" placeholder="描述你要生成的音乐风格、情绪、歌词主题或编曲要求">一首 90 年代城市流行风格的中文歌曲，温暖、怀旧，副歌旋律抓耳</textarea>
+                                </div>
+
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">并发数</label>
+                                        <input id="testConcurrencyInput" type="number" min="1" max="10000" value="10" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="text-sm font-medium mb-2 block">请求次数</label>
+                                        <input id="testRequestCountInput" type="number" min="1" max="100000" value="20" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                    </div>
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <button id="btnTestGenerate" onclick="runSingleModelTest()" disabled class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed h-9 px-4">单次生成测试</button>
+                                    <button id="btnConcurrentTest" onclick="runConcurrentModelTest()" disabled class="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed h-9 px-4">并发测试</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            <div class="rounded-lg border border-border bg-muted/20 p-4">
+                                <p class="text-xs font-medium text-muted-foreground">成功</p>
+                                <p id="testSuccessCount" class="mt-2 text-xl font-semibold text-green-700">0</p>
+                            </div>
+                            <div class="rounded-lg border border-border bg-muted/20 p-4">
+                                <p class="text-xs font-medium text-muted-foreground">失败</p>
+                                <p id="testFailCount" class="mt-2 text-xl font-semibold text-red-700">0</p>
+                            </div>
+                            <div class="rounded-lg border border-border bg-muted/20 p-4">
+                                <p class="text-xs font-medium text-muted-foreground">平均耗时</p>
+                                <p id="testAvgDuration" class="mt-2 text-xl font-semibold">-</p>
+                            </div>
+                            <div class="rounded-lg border border-border bg-muted/20 p-4">
+                                <p class="text-xs font-medium text-muted-foreground">总耗时</p>
+                                <p id="testTotalDuration" class="mt-2 text-xl font-semibold">-</p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-lg border border-border bg-background">
+                            <div class="flex items-center justify-between gap-3 border-b border-border p-4">
+                                <div>
+                                    <h4 class="text-base font-semibold">测试输出</h4>
+                                    <p id="testStatusText" class="mt-1 text-xs text-muted-foreground">等待测试。</p>
+                                </div>
+                                <button onclick="clearTestOutput()" class="inline-flex items-center justify-center rounded-md transition-colors hover:bg-accent h-8 px-3 text-sm">清空输出</button>
+                            </div>
+                            <div class="space-y-4 p-4">
+                                <pre id="testOutputLog" class="max-h-[260px] overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">准备就绪。</pre>
+                                <div id="testOutputResult" class="grid gap-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志详情模态框 -->
+        <div id="logDetailModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div class="bg-background rounded-lg border border-border w-full max-w-3xl shadow-xl max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between p-5 border-b border-border">
+                    <h3 class="text-lg font-semibold">日志详情</h3>
+                    <button onclick="closeLogDetailModal()" class="text-muted-foreground hover:text-foreground">
+                        <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-5 overflow-y-auto">
+                    <div id="logDetailContent" class="space-y-4">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="mt-12 pt-6 border-t border-border text-center text-xs text-muted-foreground">
+            <p><a href="https://github.com/genz27/FlowMusic2API" target="_blank" rel="noopener noreferrer" class="no-underline hover:underline" style="color: inherit;">https://github.com/genz27/FlowMusic2API</a></p>
+        </footer>
+    </main>
+
+    <!-- 添加 Token 模态框 -->
+    <div id="addModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-background rounded-lg border border-border w-full max-w-2xl shadow-xl my-auto">
+            <div class="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-background">
+                <h3 class="text-lg font-semibold">添加 Token</h3>
+                <button onclick="closeAddModal()" class="text-muted-foreground hover:text-foreground">
+                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <!-- FlowMusic Refresh Token -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">FlowMusic Refresh Token <span class="text-muted-foreground text-xs">- 自动刷新 Bearer 时必填</span></label>
+                    <textarea id="addTokenST" rows="3" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="请输入 Supabase refresh token；也可直接在 at/access_token 字段导入 Bearer" required></textarea>
+                    <p class="text-xs text-muted-foreground">填写 Supabase refresh token 后，可通过“刷新AT”更新最新 FlowMusic Bearer；如只有现成 Bearer，可在导入 JSON 中使用 at/access_token 字段。</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">FlowMusic Bearer (AT) <span class="text-muted-foreground text-xs">- Bearer 直连模式必填</span></label>
+                    <textarea id="addTokenAT" rows="3" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="可直接粘贴 FlowMusic Bearer token；也可先填 refresh token 后点击刷新AT"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Provider Token <span class="text-muted-foreground text-xs">- 可选</span></label>
+                        <textarea id="addTokenProviderToken" rows="2" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="Google provider_token，可直接换取最新 FlowMusic Bearer"></textarea>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Provider Refresh Token <span class="text-muted-foreground text-xs">- 可选</span></label>
+                        <textarea id="addTokenProviderRefreshToken" rows="2" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="provider_refresh_token，如 FlowMusic 返回则可留存"></textarea>
+                    </div>
+                </div>
+
+                <!-- Remark -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">备注 <span class="text-muted-foreground text-xs">- 可选</span></label>
+                    <input id="addTokenRemark" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="添加备注信息">
+                </div>
+
+                <div class="space-y-4 pt-2 border-t border-border">
+                    <label class="text-sm font-medium">Token 刷新与代理</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">添加方式</label>
+                            <select id="addTokenProtocolMode" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                <option value="refresh_token">Refresh Token</option>
+                                <option value="bearer">Bearer 直连</option>
+                                <option value="protocol">Cookie 协议刷新</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">Token 代理 <span class="text-muted-foreground text-xs">- 可选</span></label>
+                            <input id="addTokenProxyUrl" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" placeholder="例如 http://user:pass@host:port">
+                        </div>
+                        <div class="space-y-2 md:col-span-2">
+                            <label class="text-sm font-medium">FlowMusic Cookie <span class="text-muted-foreground text-xs">- 可选兜底</span></label>
+                            <textarea id="addTokenGoogleCookies" rows="4" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y" placeholder="可选：粘贴 FlowMusic Cookie，作为上游请求兜底 Header"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">登录账号 <span class="text-muted-foreground text-xs">- 可选</span></label>
+                            <input id="addTokenLoginAccount" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="name@gmail.com">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">登录密码 <span class="text-muted-foreground text-xs">- 仅存档</span></label>
+                            <input id="addTokenLoginPassword" type="password" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="如需留档可填写">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="addTokenAutoRefreshEnabled" checked class="h-4 w-4 rounded border-input">
+                            <span class="text-sm font-medium">启用 Bearer 自动刷新</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-muted-foreground">刷新间隔</span>
+                            <input id="addTokenRefreshIntervalMinutes" type="number" value="120" min="5" class="flex h-8 w-24 rounded-md border border-input bg-background px-2 py-1 text-sm">
+                            <span class="text-sm text-muted-foreground">分钟</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="flex items-center justify-end gap-3 p-5 border-t border-border sticky bottom-0 bg-background">
+                <button onclick="closeAddModal()" class="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent h-9 px-5">取消</button>
+                <button id="addTokenBtn" onclick="submitAddToken()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-5">
+                    <span id="addTokenBtnText">添加</span>
+                    <svg id="addTokenBtnSpinner" class="hidden animate-spin h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑 Token 模态框 -->
+    <div id="editModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-background rounded-lg border border-border w-full max-w-2xl shadow-xl my-auto">
+            <div class="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-background">
+                <h3 class="text-lg font-semibold">编辑 Token</h3>
+                <button onclick="closeEditModal()" class="text-muted-foreground hover:text-foreground">
+                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <input type="hidden" id="editTokenId">
+
+                <!-- FlowMusic Refresh Token -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">FlowMusic Refresh Token <span class="text-muted-foreground text-xs">- 自动刷新 Bearer 时必填</span></label>
+                    <textarea id="editTokenST" rows="3" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="请输入 Supabase refresh token；也可直接在 at/access_token 字段导入 Bearer" required></textarea>
+                    <p class="text-xs text-muted-foreground">填写 Supabase refresh token 后，可通过“刷新AT”更新最新 FlowMusic Bearer；如只有现成 Bearer，可在导入 JSON 中使用 at/access_token 字段。</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">FlowMusic Bearer (AT) <span class="text-muted-foreground text-xs">- Bearer 直连模式必填</span></label>
+                    <textarea id="editTokenAT" rows="3" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="可直接粘贴 FlowMusic Bearer token；也可先填 refresh token 后点击刷新AT"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Provider Token <span class="text-muted-foreground text-xs">- 可选</span></label>
+                        <textarea id="editTokenProviderToken" rows="2" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="Google provider_token，可直接换取最新 FlowMusic Bearer"></textarea>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium">Provider Refresh Token <span class="text-muted-foreground text-xs">- 可选</span></label>
+                        <textarea id="editTokenProviderRefreshToken" rows="2" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-none" placeholder="provider_refresh_token，如 FlowMusic 返回则可留存"></textarea>
+                    </div>
+                </div>
+
+                <!-- Remark -->
+                <div class="space-y-2">
+                    <label class="text-sm font-medium">备注 <span class="text-muted-foreground text-xs">- 可选</span></label>
+                    <input id="editTokenRemark" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="添加备注信息">
+                </div>
+
+                <div class="space-y-4 pt-2 border-t border-border">
+                    <label class="text-sm font-medium">Token 刷新与代理</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">添加方式</label>
+                            <select id="editTokenProtocolMode" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                <option value="refresh_token">Refresh Token</option>
+                                <option value="bearer">Bearer 直连</option>
+                                <option value="protocol">Cookie 协议刷新</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">Token 代理 <span class="text-muted-foreground text-xs">- 可选</span></label>
+                            <input id="editTokenProxyUrl" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono" placeholder="例如 http://user:pass@host:port">
+                        </div>
+                        <div class="space-y-2 md:col-span-2">
+                            <label class="text-sm font-medium">FlowMusic Cookie <span class="text-muted-foreground text-xs">- 可选兜底</span></label>
+                            <textarea id="editTokenGoogleCookies" rows="4" class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y" placeholder="可选：粘贴 FlowMusic Cookie，作为上游请求兜底 Header"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">登录账号 <span class="text-muted-foreground text-xs">- 可选</span></label>
+                            <input id="editTokenLoginAccount" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="name@gmail.com">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium">登录密码 <span class="text-muted-foreground text-xs">- 仅存档</span></label>
+                            <input id="editTokenLoginPassword" type="password" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="如需留档可填写">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="inline-flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="editTokenAutoRefreshEnabled" class="h-4 w-4 rounded border-input">
+                            <span class="text-sm font-medium">启用 Bearer 自动刷新</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-muted-foreground">刷新间隔</span>
+                            <input id="editTokenRefreshIntervalMinutes" type="number" min="5" class="flex h-8 w-24 rounded-md border border-input bg-background px-2 py-1 text-sm">
+                            <span class="text-sm text-muted-foreground">分钟</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="flex items-center justify-end gap-3 p-5 border-t border-border sticky bottom-0 bg-background">
+                <button onclick="closeEditModal()" class="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent h-9 px-5">取消</button>
+                <button id="editTokenBtn" onclick="submitEditToken()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-5">
+                    <span id="editTokenBtnText">保存</span>
+                    <svg id="editTokenBtnSpinner" class="hidden animate-spin h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token 导入模态框 -->
+    <div id="importModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-background rounded-lg border border-border w-full max-w-md shadow-xl">
+            <div class="flex items-center justify-between p-5 border-b border-border">
+                <h3 class="text-lg font-semibold">导入 Token</h3>
+                <button onclick="closeImportModal()" class="text-muted-foreground hover:text-foreground">
+                    <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="text-sm font-medium mb-2 block">选择 JSON 文件</label>
+                    <input type="file" id="importFile" accept=".json" class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <p class="text-xs text-muted-foreground mt-1">支持 Token JSON、{tokens:[...]}，也支持浏览器导出的 FlowMusic Cookie JSON（自动解析 sb-sb-auth-token.0/1）。</p>
+                </div>
+                <div class="rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 border border-blue-200 dark:border-blue-800">
+                    <p class="text-xs text-blue-800 dark:text-blue-200">
+                        <strong>说明：</strong>如果邮箱存在则会覆盖更新，不存在则会新增
+                    </p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 p-5 border-t border-border">
+                <button onclick="closeImportModal()" class="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent h-9 px-5">取消</button>
+                <button id="importBtn" onclick="submitImportTokens()" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-5">
+                    <span id="importBtnText">导入</span>
+                    <svg id="importBtnSpinner" class="hidden animate-spin h-4 w-4 ml-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allTokens=[];
+        const testState={selectedModel:null,modelConfig:null,generating:false,concurrentRunning:false,models:{},modelsLoaded:false};
+        const TEST_MODEL_CATEGORIES=[
+            {name:'FlowMusic 音乐生成',filter:id=>id.includes('flowmusic')||id.startsWith('lyria')},
+            {name:'其他模型',filter:()=>true}
+        ];
+        const TEST_FALLBACK_MODELS={
+            'lyria':'Standard quality music generation',
+            'lyria-fast':'Music generation alias using FlowMusic standard mode',
+            'lyria-pro':'Best quality, deeper composition reasoning',
+            'lyria-pro-fast':'Pro music generation alias using FlowMusic standard mode'
+        };
+        const $=(id)=>document.getElementById(id),
+        checkAuth=()=>{const t=localStorage.getItem('adminToken');return t||(location.href='/login',null),t},
+        apiRequest=async(url,opts={})=>{const t=checkAuth();if(!t)return null;const r=await fetch(url,{...opts,headers:{...opts.headers,Authorization:`Bearer ${t}`,'Content-Type':'application/json'}});return r.status===401?(localStorage.removeItem('adminToken'),location.href='/login',null):r},
+        loadStats=async()=>{try{const r=await apiRequest('/api/stats');if(!r)return;const d=await r.json();$('statTotal').textContent=d.total_tokens||0;$('statActive').textContent=d.active_tokens||0;$('statMusic').textContent=(d.today_music||0)+'/'+(d.total_music||0);$('statErrors').textContent=(d.today_errors||0)+'/'+(d.total_errors||0)}catch(e){console.error('加载统计失败:',e)}},
+        loadTokens=async()=>{try{const r=await apiRequest('/api/tokens');if(!r)return;allTokens=await r.json();renderTokens()}catch(e){console.error('加载Token失败:',e)}},
+        formatExpiry=exp=>{if(!exp)return'<span class="text-muted-foreground">-</span>';const d=new Date(exp),now=new Date(),diff=d-now;const dateStr=d.toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');const timeStr=d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});const hours=Math.floor(diff/36e5);if(diff<0)return`<span class="text-red-600 font-medium" title="已过期">已过期</span>`;if(hours<1)return`<span class="text-red-600 font-medium" title="${dateStr} ${timeStr}">${Math.floor(diff/6e4)}分钟</span>`;if(hours<24)return`<span class="text-orange-600 font-medium" title="${dateStr} ${timeStr}">${hours}小时</span>`;const days=Math.floor(diff/864e5);if(days<7)return`<span class="text-orange-600" title="${dateStr} ${timeStr}">${days}天</span>`;return`<span class="text-muted-foreground" title="${dateStr} ${timeStr}">${days}天</span>`},
+        formatPlanType=type=>{if(!type)return'-';const typeMap={'chatgpt_team':'Team','chatgpt_plus':'Plus','chatgpt_pro':'Pro','chatgpt_free':'Free'};return typeMap[type]||type},
+        formatPlanTypeWithTooltip=(t)=>{const tooltipText=t.subscription_end?`套餐到期: ${new Date(t.subscription_end).toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-')} ${new Date(t.subscription_end).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false})}`:'';return`<span class="inline-flex items-center rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700 cursor-pointer" title="${tooltipText||t.plan_title||'-'}">${formatPlanType(t.plan_type)}</span>`},
+        formatAccountType=(tier)=>{if(tier==='PAYGATE_TIER_NOT_PAID'||!tier){return`<span class="inline-flex items-center rounded px-2 py-0.5 text-xs bg-gray-100 text-gray-700">Free</span>`}if(tier==='PAYGATE_TIER_ONE'){return`<span class="inline-flex items-center rounded px-2 py-0.5 text-xs bg-blue-50 text-blue-700">Pro</span>`}if(tier==='PAYGATE_TIER_TWO'){return`<span class="inline-flex items-center rounded px-2 py-0.5 text-xs bg-purple-50 text-purple-700">Ult</span>`}return`<span class="inline-flex items-center rounded px-2 py-0.5 text-xs bg-amber-50 text-amber-700" title="${tier}">${tier}</span>`},
+        formatDateTime=(ts)=>{if(!ts)return'';const d=new Date(ts);return isNaN(d.getTime())?String(ts):d.toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(/\//g,'-')},
+        renderTokenActions=t=>{const toggleLabel=t.is_active?'禁用':'启用';return`<div class="token-table-actions"><button onclick="refreshTokenAT(${t.id})" class="inline-flex h-7 items-center justify-center rounded-md px-2 text-xs font-medium hover:bg-blue-50 hover:text-blue-700">刷新AT</button><button onclick="openEditModal(${t.id})" class="inline-flex h-7 items-center justify-center rounded-md px-2 text-xs font-medium hover:bg-green-50 hover:text-green-700">详情</button><button onclick="toggleToken(${t.id},${t.is_active})" class="inline-flex h-7 items-center justify-center rounded-md px-2 text-xs font-medium hover:bg-accent">${toggleLabel}</button><button onclick="deleteToken(${t.id})" class="inline-flex h-7 items-center justify-center rounded-md px-2 text-xs font-medium hover:bg-destructive/10 hover:text-destructive">删除</button></div>`},
+        renderTokens=()=>{const tb=$('tokenTableBody');tb.innerHTML=allTokens.map(t=>{const musicDisplay=t.music_count!==undefined?`${t.music_count||0}`:'-';const creditsDisplay=t.credits!==undefined?`${t.credits}`:'-';const accountTypeDisplay=formatAccountType(t.user_paygate_tier);const expiryDisplay=formatExpiry(t.at_expires);const tokenActions=renderTokenActions(t);return`<tr class="hover:bg-muted/20 transition-colors"><td class="py-3 px-2.5 align-middle"><div class="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-foreground" title="${escapeLogHtml(t.email||'')}">${escapeLogHtml(t.email||'-')}</div></td><td class="py-3 px-2.5 text-center align-middle whitespace-nowrap"><span class="inline-flex items-center rounded px-2 py-0.5 text-xs ${t.is_active?'bg-green-50 text-green-700':'bg-gray-100 text-gray-700'}">${t.is_active?'启用':'禁用'}</span></td><td class="py-3 px-2.5 text-center text-xs align-middle whitespace-nowrap">${expiryDisplay}</td><td class="py-3 px-2.5 text-center align-middle whitespace-nowrap"><button onclick="refreshTokenCredits(${t.id})" class="inline-flex items-center justify-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 hover:text-blue-800" title="点击刷新余额"><span>${creditsDisplay}</span><svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><path d="M15 4.5l3.5 3.5L22 4.5"/></svg></button></td><td class="py-3 px-2.5 text-center align-middle whitespace-nowrap">${accountTypeDisplay}</td><td class="py-3 px-2.5 text-center align-middle whitespace-nowrap"><span class="text-sm font-medium">${musicDisplay}</span></td><td class="py-3 px-2.5 text-center align-middle whitespace-nowrap"><span class="text-sm font-medium ${Number(t.error_count||0)>0?'text-red-600':'text-foreground'}">${t.error_count||0}</span></td><td class="py-3 px-2.5 text-right align-middle">${tokenActions}</td></tr>`}).join('')},
+        refreshTokenCredits=async(id)=>{try{showToast('正在刷新余额...','info');const r=await apiRequest(`/api/tokens/${id}/refresh-credits`,{method:'POST'});if(!r)return;const d=await r.json();if(d.success){showToast(`余额刷新成功: ${d.credits}`,'success');await refreshTokens()}else{showToast('刷新余额失败: '+(d.detail||'未知错误'),'error')}}catch(e){showToast('刷新余额失败: '+e.message,'error')}},
+        refreshTokenAT=async(id)=>{try{showToast('正在更新AT...','info');const r=await apiRequest(`/api/tokens/${id}/refresh-at`,{method:'POST'});if(!r)return;const d=await r.json();if(d.success){const expiresDate=d.token.at_expires?new Date(d.token.at_expires):null;const expiresStr=expiresDate?expiresDate.toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).replace(/\//g,'-'):'未知';showToast(`AT更新成功! 新过期时间: ${expiresStr}`,'success');await refreshTokens()}else{showToast('更新失败: '+(d.detail||'未知错误'),'error')}}catch(e){showToast('更新失败: '+e.message,'error')}},
+        refreshTokens=async()=>{await loadTokens();await loadStats()},
+        parseOptionalNumber=value=>{const text=String(value??'').trim();if(!text)return null;const parsed=parseInt(text,10);return Number.isNaN(parsed)?null:parsed},
+        readTokenForm=prefix=>({st:$(`${prefix}TokenST`).value.trim(),at:$(`${prefix}TokenAT`).value.trim(),providerToken:$(`${prefix}TokenProviderToken`).value.trim(),providerRefreshToken:$(`${prefix}TokenProviderRefreshToken`).value.trim(),remark:$(`${prefix}TokenRemark`).value.trim(),protocolMode:$(`${prefix}TokenProtocolMode`).value||'refresh_token',googleCookies:$(`${prefix}TokenGoogleCookies`).value.trim(),loginAccount:$(`${prefix}TokenLoginAccount`).value.trim(),loginPassword:$(`${prefix}TokenLoginPassword`).value,proxyUrl:$(`${prefix}TokenProxyUrl`).value.trim(),autoRefreshEnabled:$(`${prefix}TokenAutoRefreshEnabled`).checked,refreshIntervalMinutes:parseOptionalNumber($(`${prefix}TokenRefreshIntervalMinutes`).value)}),
+        validateTokenForm=form=>{if(form.protocolMode==='refresh_token'&&!form.st&&!form.providerToken&&!form.providerRefreshToken)return'请输入 Supabase refresh token、Provider Token 或 Provider Refresh Token';if(form.protocolMode==='bearer'&&!form.at)return'Bearer 直连模式请输入 FlowMusic Bearer';if(form.protocolMode==='protocol'&&!form.googleCookies)return'Cookie 协议刷新模式请输入 FlowMusic Cookie';if(form.refreshIntervalMinutes!==null&&form.refreshIntervalMinutes<5)return'刷新间隔不能小于 5 分钟';return''},
+        resetTokenForm=prefix=>{if($(`${prefix}TokenId`))$(`${prefix}TokenId`).value='';$(`${prefix}TokenST`).value='';$(`${prefix}TokenAT`).value='';$(`${prefix}TokenProviderToken`).value='';$(`${prefix}TokenProviderRefreshToken`).value='';$(`${prefix}TokenRemark`).value='';$(`${prefix}TokenProtocolMode`).value='refresh_token';$(`${prefix}TokenGoogleCookies`).value='';$(`${prefix}TokenLoginAccount`).value='';$(`${prefix}TokenLoginPassword`).value='';$(`${prefix}TokenProxyUrl`).value='';$(`${prefix}TokenAutoRefreshEnabled`).checked=true;$(`${prefix}TokenRefreshIntervalMinutes`).value='120'},
+        fillTokenForm=(prefix,token)=>{if($(`${prefix}TokenId`))$(`${prefix}TokenId`).value=token.id||'';$(`${prefix}TokenST`).value=token.st||'';$(`${prefix}TokenAT`).value=token.at||token.flow_bearer||'';$(`${prefix}TokenProviderToken`).value=token.provider_token||'';$(`${prefix}TokenProviderRefreshToken`).value=token.provider_refresh_token||'';$(`${prefix}TokenRemark`).value=token.remark||'';$(`${prefix}TokenProtocolMode`).value=token.protocol_mode||'refresh_token';$(`${prefix}TokenGoogleCookies`).value=token.google_cookies||'';$(`${prefix}TokenLoginAccount`).value=token.login_account||'';$(`${prefix}TokenLoginPassword`).value='';$(`${prefix}TokenProxyUrl`).value=token.proxy_url||'';$(`${prefix}TokenAutoRefreshEnabled`).checked=token.auto_refresh_enabled!==false;$(`${prefix}TokenRefreshIntervalMinutes`).value=token.refresh_interval_minutes||120},
+        openAddModal=()=>{resetTokenForm('add');$('addModal').classList.remove('hidden')},
+        closeAddModal=()=>{$('addModal').classList.add('hidden');resetTokenForm('add')},
+        openEditModal=async(id)=>{const summary=allTokens.find(t=>t.id===id);if(!summary)return showToast('Token不存在','error');try{const r=await apiRequest(`/api/tokens/${id}`);if(!r)return;const d=await r.json();if(d.success&&d.token){fillTokenForm('edit',d.token);$('editModal').classList.remove('hidden')}else{showToast('Token详情加载失败','error')}}catch(e){showToast('Token详情加载失败: '+e.message,'error')}},
+        closeEditModal=()=>{$('editModal').classList.add('hidden');resetTokenForm('edit')},
+        submitEditToken=async()=>{const id=parseInt($('editTokenId').value,10);const form=readTokenForm('edit');if(!id)return showToast('Token ID无效','error');const validationMessage=validateTokenForm(form);if(validationMessage)return showToast(validationMessage,'error');const btn=$('editTokenBtn'),btnText=$('editTokenBtnText'),btnSpinner=$('editTokenBtnSpinner');btn.disabled=true;btnText.textContent='保存中...';btnSpinner.classList.remove('hidden');try{const r=await apiRequest(`/api/tokens/${id}`,{method:'PUT',body:JSON.stringify({st:form.st||null,at:form.at||null,provider_token:form.providerToken||null,provider_refresh_token:form.providerRefreshToken||null,remark:form.remark||null,protocol_mode:form.protocolMode,google_cookies:form.googleCookies||null,login_account:form.loginAccount,login_password:form.loginPassword||null,proxy_url:form.proxyUrl,auto_refresh_enabled:form.autoRefreshEnabled,refresh_interval_minutes:form.refreshIntervalMinutes})});if(!r){btn.disabled=false;btnText.textContent='保存';btnSpinner.classList.add('hidden');return}const d=await r.json();if(d.success){closeEditModal();await refreshTokens();showToast('Token更新成功','success')}else{showToast('更新失败: '+(d.detail||d.message||'未知错误'),'error')}}catch(e){showToast('更新失败: '+e.message,'error')}finally{btn.disabled=false;btnText.textContent='保存';btnSpinner.classList.add('hidden')}},
+        convertST2AT=async()=>{const st=$('addTokenST').value.trim();if(!st)return showToast('请先输入 Supabase refresh token','error');try{showToast('正在刷新 Bearer...','info');const r=await apiRequest('/api/tokens/st2at',{method:'POST',body:JSON.stringify({st:st})});if(!r)return;const d=await r.json();if(d.success&&d.access_token){$('addTokenAT').value=d.access_token;showToast('刷新成功！Bearer 已更新','success')}else{showToast('刷新失败: '+(d.message||d.detail||'未知错误'),'error')}}catch(e){showToast('刷新失败: '+e.message,'error')}},
+        convertEditST2AT=async()=>{const st=$('editTokenST').value.trim();if(!st)return showToast('请先输入 Supabase refresh token','error');try{showToast('正在刷新 Bearer...','info');const r=await apiRequest('/api/tokens/st2at',{method:'POST',body:JSON.stringify({st:st})});if(!r)return;const d=await r.json();if(d.success&&d.access_token){$('editTokenAT').value=d.access_token;showToast('刷新成功！Bearer 已更新','success')}else{showToast('刷新失败: '+(d.message||d.detail||'未知错误'),'error')}}catch(e){showToast('刷新失败: '+e.message,'error')}},
+        submitAddToken=async()=>{const form=readTokenForm('add');const validationMessage=validateTokenForm(form);if(validationMessage)return showToast(validationMessage,'error');const btn=$('addTokenBtn'),btnText=$('addTokenBtnText'),btnSpinner=$('addTokenBtnSpinner');btn.disabled=true;btnText.textContent='添加中...';btnSpinner.classList.remove('hidden');try{const r=await apiRequest('/api/tokens',{method:'POST',body:JSON.stringify({st:form.st||null,at:form.at||null,provider_token:form.providerToken||null,provider_refresh_token:form.providerRefreshToken||null,remark:form.remark||null,protocol_mode:form.protocolMode,google_cookies:form.googleCookies,login_account:form.loginAccount,login_password:form.loginPassword,proxy_url:form.proxyUrl,auto_refresh_enabled:form.autoRefreshEnabled,refresh_interval_minutes:form.refreshIntervalMinutes??120})});if(!r){btn.disabled=false;btnText.textContent='添加';btnSpinner.classList.add('hidden');return}const d=await r.json();if(d.success){closeAddModal();await refreshTokens();showToast('Token添加成功','success')}else{showToast('添加失败: '+(d.detail||d.message||'未知错误'),'error')}}catch(e){showToast('添加失败: '+e.message,'error')}finally{btn.disabled=false;btnText.textContent='添加';btnSpinner.classList.add('hidden')}},
+        testToken=async(id)=>{try{showToast('正在测试Token...','info');const r=await apiRequest(`/api/tokens/${id}/test`,{method:'POST'});if(!r)return;const d=await r.json();if(d.success&&d.status==='success'){showToast(`Token有效！用户: ${d.email||'未知'}，余额: ${d.credits??'-'}`,'success');await refreshTokens()}else{showToast(`Token无效: ${d.message||'未知错误'}`,'error')}}catch(e){showToast('测试失败: '+e.message,'error')}},
+        toggleToken=async(id,isActive)=>{const action=isActive?'disable':'enable';try{const r=await apiRequest(`/api/tokens/${id}/${action}`,{method:'POST'});if(!r)return;const d=await r.json();d.success?(await refreshTokens(),showToast(isActive?'Token已禁用':'Token已启用','success')):showToast('操作失败','error')}catch(e){showToast('操作失败: '+e.message,'error')}},
+        toggleTokenStatus=async(id,active)=>{try{const r=await apiRequest(`/api/tokens/${id}/status`,{method:'PUT',body:JSON.stringify({is_active:active})});if(!r)return;const d=await r.json();d.success?(await refreshTokens(),showToast('状态更新成功','success')):showToast('更新失败','error')}catch(e){showToast('更新失败: '+e.message,'error')}},
+        deleteToken=async(id,skipConfirm=false)=>{if(!skipConfirm&&!confirm('确定要删除这个Token吗?'))return;try{const r=await apiRequest(`/api/tokens/${id}`,{method:'DELETE'});if(!r)return;const d=await r.json();if(d.success){await refreshTokens();if(!skipConfirm)showToast('删除成功','success');return true}else{if(!skipConfirm)showToast('删除失败','error');return false}}catch(e){if(!skipConfirm)showToast('删除失败: '+e.message,'error');return false}},
+        openImportModal=()=>{$('importModal').classList.remove('hidden');$('importFile').value=''},
+        closeImportModal=()=>{$('importModal').classList.add('hidden');$('importFile').value=''},
+        exportTokens=async()=>{if(allTokens.length===0){showToast('没有Token可导出','error');return}try{const r=await apiRequest('/api/tokens/export');if(!r)return;const d=await r.json();const tokens=Array.isArray(d)?d:(d.tokens||[]);const exportData=tokens.map(t=>({email:t.email,access_token:t.flow_bearer||t.at||'',refresh_token:t.refresh_token||t.st||null,provider_token:t.provider_token||'',provider_refresh_token:t.provider_refresh_token||'',is_active:t.is_active,protocol_mode:t.protocol_mode||'refresh_token',google_cookies:t.google_cookies||'',login_account:t.login_account||'',login_password:'',proxy_url:t.proxy_url||'',auto_refresh_enabled:t.auto_refresh_enabled!==false,refresh_interval_minutes:t.refresh_interval_minutes||120}));const dataStr=JSON.stringify(exportData,null,2);const dataBlob=new Blob([dataStr],{type:'application/json'});const url=URL.createObjectURL(dataBlob);const link=document.createElement('a');link.href=url;link.download=`tokens_${new Date().toISOString().split('T')[0]}.json`;document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(url);showToast(`已导出 ${exportData.length} 个Token`,'success')}catch(e){showToast('导出失败: '+e.message,'error')}},
+        submitImportTokens=async()=>{const fileInput=$('importFile');if(!fileInput.files||fileInput.files.length===0){showToast('请选择文件','error');return}const file=fileInput.files[0];if(!file.name.endsWith('.json')){showToast('请选择JSON文件','error');return}try{const fileContent=await file.text();const importData=JSON.parse(fileContent);const tokens=Array.isArray(importData)?importData:(importData&&Array.isArray(importData.tokens)?importData.tokens:null);if(!tokens){showToast('JSON格式错误：应为数组或包含 tokens 数组的对象','error');return}if(tokens.length===0){showToast('JSON文件为空','error');return}const btn=$('importBtn'),btnText=$('importBtnText'),btnSpinner=$('importBtnSpinner');btn.disabled=true;btnText.textContent='导入中...';btnSpinner.classList.remove('hidden');try{const r=await apiRequest('/api/tokens/import',{method:'POST',body:JSON.stringify({tokens:tokens})});if(!r){btn.disabled=false;btnText.textContent='导入';btnSpinner.classList.add('hidden');return}const d=await r.json();if(d.success){closeImportModal();await refreshTokens();const msg=`导入成功！新增: ${d.added||0}, 更新: ${d.updated||0}`;showToast(msg,'success')}else{showToast('导入失败: '+(d.detail||d.message||'未知错误'),'error')}}catch(e){showToast('导入失败: '+e.message,'error')}finally{btn.disabled=false;btnText.textContent='导入';btnSpinner.classList.add('hidden')}}catch(e){showToast('文件解析失败: '+e.message,'error')}},
+        loadAdminConfig=async()=>{try{const r=await apiRequest('/api/admin/config');if(!r)return;const d=await r.json();window.currentAPIKey=d.api_key||'';$('cfgErrorBan').value=d.error_ban_threshold||3;$('cfgAdminUsername').value=d.admin_username||'admin';$('cfgCurrentAPIKey').value=window.currentAPIKey;$('cfgDebugEnabled').checked=d.debug_enabled||false;if($('cfgGuestTrialEnabled'))$('cfgGuestTrialEnabled').checked=!!d.guest_trial_enabled;if($('cfgGuestDailyLimit'))$('cfgGuestDailyLimit').value=d.max_daily_guest_uses||0;if($('cfgGuestGlobalDailyLimit'))$('cfgGuestGlobalDailyLimit').value=d.guest_global_daily_limit||0}catch(e){console.error('加载配置失败:',e)}},
+        saveAdminConfig=async()=>{const threshold=parseInt($('cfgErrorBan').value,10);if(Number.isNaN(threshold)||threshold<1)return showToast('错误封禁阈值必须大于 0','error');try{const r=await apiRequest('/api/admin/config',{method:'POST',body:JSON.stringify({error_ban_threshold:threshold})});if(!r)return;const d=await r.json();if(d.success){showToast('配置保存成功','success');await loadAdminConfig()}else{showToast('保存失败','error')}}catch(e){showToast('保存失败: '+e.message,'error')}},
+        saveGuestTrialConfig=async()=>{const perIP=parseInt($('cfgGuestDailyLimit').value,10)||0;const global=parseInt($('cfgGuestGlobalDailyLimit').value,10)||0;if(perIP<0||global<0)return showToast('限制次数不能为负数','error');try{const r=await apiRequest('/api/admin/config',{method:'POST',body:JSON.stringify({guest_trial_enabled:$('cfgGuestTrialEnabled').checked,max_daily_guest_uses:perIP,guest_global_daily_limit:global})});if(!r)return;const d=await r.json();if(d.success){showToast('游客配置已保存','success');await loadAdminConfig()}else{showToast('保存失败','error')}}catch(e){showToast('保存失败: '+e.message,'error')}},
+        updateAdminPassword=async()=>{const username=$('cfgAdminUsername').value.trim(),oldPwd=$('cfgOldPassword').value.trim(),newPwd=$('cfgNewPassword').value.trim();if(!oldPwd||!newPwd)return showToast('请输入旧密码和新密码','error');if(newPwd.length<4)return showToast('新密码至少4个字符','error');try{const r=await apiRequest('/api/admin/password',{method:'POST',body:JSON.stringify({username:username||undefined,old_password:oldPwd,new_password:newPwd})});if(!r)return;const d=await r.json();if(d.success){showToast('密码修改成功，请重新登录','success');setTimeout(()=>{localStorage.removeItem('adminToken');location.href='/login'},2000)}else{showToast('修改失败: '+(d.detail||'未知错误'),'error')}}catch(e){showToast('修改失败: '+e.message,'error')}},
+        updateAPIKey=async()=>{const newKey=$('cfgNewAPIKey').value.trim();if(!newKey)return showToast('请输入新的 API Key','error');if(newKey.length<6)return showToast('API Key 至少6个字符','error');if(!confirm('确定要更新 API Key 吗？更新后需要通知所有客户端使用新密钥。'))return;try{const r=await apiRequest('/api/admin/apikey',{method:'POST',body:JSON.stringify({new_api_key:newKey})});if(!r)return;const d=await r.json();if(d.success){showToast('API Key 更新成功','success');window.currentAPIKey=newKey;testState.modelsLoaded=false;$('cfgCurrentAPIKey').value=newKey;$('cfgNewAPIKey').value=''}else{showToast('更新失败: '+(d.detail||'未知错误'),'error')}}catch(e){showToast('更新失败: '+e.message,'error')}},
+        toggleDebugMode=async()=>{const enabled=$('cfgDebugEnabled').checked;try{const r=await apiRequest('/api/admin/debug',{method:'POST',body:JSON.stringify({enabled:enabled})});if(!r)return;const d=await r.json();if(d.success){showToast(enabled?'调试模式已开启':'调试模式已关闭','success')}else{showToast('操作失败: '+(d.detail||'未知错误'),'error');$('cfgDebugEnabled').checked=!enabled}}catch(e){showToast('操作失败: '+e.message,'error');$('cfgDebugEnabled').checked=!enabled}},
+        loadProxyConfig=async()=>{try{const r=await apiRequest('/api/proxy/config');if(!r)return;const d=await r.json();$('cfgProxyEnabled').checked=d.proxy_enabled||false;$('cfgProxyUrl').value=d.proxy_url||'';$('cfgMediaProxyEnabled').checked=d.media_proxy_enabled||false;$('cfgMediaProxyUrl').value=d.media_proxy_url||'';toggleMediaProxyInput()}catch(e){console.error('加载代理配置失败:',e)}},
+        saveProxyConfig=async()=>{try{const r=await apiRequest('/api/proxy/config',{method:'POST',body:JSON.stringify({proxy_enabled:$('cfgProxyEnabled').checked,proxy_url:$('cfgProxyUrl').value.trim(),media_proxy_enabled:$('cfgMediaProxyEnabled').checked,media_proxy_url:$('cfgMediaProxyUrl').value.trim()})});if(!r)return;const d=await r.json();d.success?showToast('代理配置保存成功','success'):showToast('保存失败','error')}catch(e){showToast('保存失败: '+e.message,'error')}},
+        updateProxyTestResult=(message,isSuccess)=>{const el=$('proxyTestResult');if(!el)return;el.textContent=message;el.className=`text-xs mt-2 ${isSuccess?'text-green-600':'text-red-600'}`},
+        testProxyConfig=async()=>{const tests=[];const requestProxyUrl=$('cfgProxyUrl').value.trim();const mediaProxyUrl=$('cfgMediaProxyUrl').value.trim();const testUrl='https://www.flowmusic.app/';if(requestProxyUrl)tests.push({name:'请求代理',proxy_url:requestProxyUrl});if(mediaProxyUrl&&mediaProxyUrl!==requestProxyUrl)tests.push({name:'媒体代理',proxy_url:mediaProxyUrl});if(tests.length===0){updateProxyTestResult('请先填写至少一个代理地址',false);showToast('请先填写代理地址','error');return}const btn=$('btnTestProxy');if(btn){btn.disabled=true;btn.textContent='测试中...'}try{const results=[];for(const item of tests){const r=await apiRequest('/api/proxy/test',{method:'POST',body:JSON.stringify({proxy_url:item.proxy_url,test_url:testUrl})});if(!r){results.push({name:item.name,success:false,message:'请求失败'});continue}const d=await r.json();results.push({name:item.name,success:!!d.success,message:d.message||'未知结果',status_code:d.status_code,elapsed_ms:d.elapsed_ms,final_url:d.final_url})}const allPass=results.every(x=>x.success);const summary=results.map(x=>`${x.name}: ${x.success?'✅':'❌'} ${x.message}${x.status_code?` (HTTP ${x.status_code})`:''}${x.elapsed_ms!==undefined?` ${x.elapsed_ms}ms`:''}`).join(' | ');updateProxyTestResult(summary,allPass);showToast(allPass?'代理测试通过':'代理测试未全部通过',allPass?'success':'error')}catch(e){updateProxyTestResult('代理测试失败: '+e.message,false);showToast('代理测试失败: '+e.message,'error')}finally{if(btn){btn.disabled=false;btn.textContent='测试代理'}}},
+        toggleMediaProxyInput=()=>{const enabled=$('cfgMediaProxyEnabled').checked;$('mediaProxyUrlInput').classList.toggle('hidden',!enabled)},
+        isObjectStorageMode=mode=>mode==='s3'||mode==='r2',
+        objectStorageLabel=mode=>mode==='r2'?'R2':'S3',
+        toggleCacheOptions=()=>{const enabled=$('cfgCacheEnabled').checked;$('cacheOptions').style.display=enabled?'block':'none';toggleCacheStorageMode()},
+        toggleCacheStorageMode=()=>{const enabled=$('cfgCacheEnabled').checked;const mode=$('cfgCacheStorageMode').value;const useS3=enabled&&isObjectStorageMode(mode);const isR2=mode==='r2';$('cacheS3Options').classList.toggle('hidden',!useS3);if($('cacheObjectStorageTitle'))$('cacheObjectStorageTitle').textContent=isR2?'Cloudflare R2 参数':'S3 / 兼容对象存储参数';if($('cacheObjectStorageHelp'))$('cacheObjectStorageHelp').textContent=isR2?'R2 使用 Cloudflare 的 S3 兼容 API Endpoint，Region 通常填 auto；公网访问前缀会被忽略并返回 R2 直链。':'S3 或兼容对象存储参数，可按供应商要求填写 Endpoint、Region、Bucket 与访问密钥。';if($('cfgS3EndpointLabel'))$('cfgS3EndpointLabel').textContent=isR2?'R2 S3 API Endpoint':'S3 Endpoint';if($('cfgS3Endpoint'))$('cfgS3Endpoint').placeholder=isR2?'https://<accountid>.r2.cloudflarestorage.com':'s3.amazonaws.com 或 minio.example.com';if($('cfgS3Region'))$('cfgS3Region').placeholder=isR2?'auto':'ap-east-1';if($('cfgS3AccessKey'))$('cfgS3AccessKey').placeholder=isR2?'R2 Access Key ID':'AKIA...';if($('cfgS3SecretKey'))$('cfgS3SecretKey').placeholder=isR2?'输入 R2 Secret Access Key':'输入 S3 Secret Key';if($('cachePublicBaseGroup'))$('cachePublicBaseGroup').classList.toggle('hidden',isR2);if(isR2&&$('cfgS3PublicBaseUrl'))$('cfgS3PublicBaseUrl').value=''},
+        loadCacheConfig=async()=>{try{console.log('开始加载缓存配置...');const r=await apiRequest('/api/cache/config');if(!r){console.error('API请求失败');return}const d=await r.json();console.log('缓存配置数据:',d);if(d.success&&d.config){const cfg=d.config;const enabled=cfg.enabled!==false;const timeout=cfg.timeout??7200;const baseUrl=cfg.base_url||'';const effectiveUrl=cfg.effective_base_url||'';$('cfgCacheEnabled').checked=enabled;$('cfgCacheTimeout').value=timeout;$('cfgCacheBaseUrl').value=baseUrl;$('cfgCacheStorageMode').value=isObjectStorageMode(cfg.storage_mode)?cfg.storage_mode:'local';$('cfgS3Endpoint').value=cfg.s3_endpoint||'';$('cfgS3Region').value=cfg.s3_region||'';$('cfgS3Bucket').value=cfg.s3_bucket||'';$('cfgS3AccessKey').value=cfg.s3_access_key||'';$('cfgS3SecretKey').value=cfg.s3_secret_key||'';$('cfgS3UseSSL').checked=cfg.s3_use_ssl!==false;$('cfgS3ForcePathStyle').checked=cfg.s3_force_path_style||false;$('cfgS3Prefix').value=cfg.s3_prefix||'';$('cfgS3PublicBaseUrl').value=cfg.s3_public_base_url||'';if(effectiveUrl){$('cacheEffectiveUrlValue').textContent=effectiveUrl;$('cacheEffectiveUrl').classList.remove('hidden')}else{$('cacheEffectiveUrl').classList.add('hidden')}toggleCacheOptions();console.log('缓存配置加载成功')}else{console.error('缓存配置数据格式错误:',d)}}catch(e){console.error('加载缓存配置失败:',e);showToast('加载缓存配置失败: '+e.message,'error')}},
+        loadGenerationTimeout=async()=>{try{console.log('开始加载生成配置...');const r=await apiRequest('/api/generation/timeout');if(!r){console.error('API请求失败');return}const d=await r.json();console.log('生成配置数据:',d);if(d.success&&d.config){const imageTimeout=d.config.image_timeout||300;const videoTimeout=d.config.video_timeout||1500;const maxRetries=d.config.max_retries||3;console.log('设置音乐生成超时:',imageTimeout);console.log('设置素材轮询超时:',videoTimeout);console.log('设置最大重试次数:',maxRetries);$('cfgImageTimeout').value=imageTimeout;$('cfgVideoTimeout').value=videoTimeout;$('cfgMaxRetries').value=maxRetries;console.log('生成配置加载成功')}else{console.error('生成配置数据格式错误:',d)}}catch(e){console.error('加载生成配置失败:',e);showToast('加载生成配置失败: '+e.message,'error')}},
+        loadCallLogicConfig=async()=>{try{const r=await apiRequest('/api/call-logic/config');if(!r)return;const d=await r.json();if(d.success&&d.config){const mode=d.config.call_mode||((d.config.polling_mode_enabled||false)?'polling':'default');$('cfgCallLogicMode').value=mode}else{console.error('轮询模式配置数据格式错误:',d)}}catch(e){console.error('加载轮询模式配置失败:',e);showToast('加载轮询模式配置失败: '+e.message,'error')}},
+        saveCacheConfig=async()=>{const enabled=$('cfgCacheEnabled').checked;const timeoutInput=$('cfgCacheTimeout').value.trim();const timeout=timeoutInput===''?7200:parseInt(timeoutInput,10);const baseUrl=$('cfgCacheBaseUrl').value.trim();const storageMode=$('cfgCacheStorageMode').value||'local';const provider=objectStorageLabel(storageMode);const s3PublicBaseUrl=storageMode==='r2'?'':$('cfgS3PublicBaseUrl').value.trim();console.log('保存缓存配置:',{enabled,timeout,baseUrl,storageMode});if(Number.isNaN(timeout)||timeout<0||timeout>86400)return showToast('缓存超时时间必须在 0-86400 秒之间，0 表示不删除','error');if(baseUrl&&!baseUrl.startsWith('http://')&&!baseUrl.startsWith('https://'))return showToast('缓存文件访问域名必须以 http:// 或 https:// 开头','error');if(storageMode!=='r2'&&s3PublicBaseUrl&&!s3PublicBaseUrl.startsWith('http://')&&!s3PublicBaseUrl.startsWith('https://'))return showToast(`${provider} 公网访问前缀必须以 http:// 或 https:// 开头`,'error');if(isObjectStorageMode(storageMode)&&!$('cfgS3Endpoint').value.trim())return showToast(`请选择 ${provider} 模式时必须填写 Endpoint`,'error');if(isObjectStorageMode(storageMode)&&!$('cfgS3Bucket').value.trim())return showToast(`请选择 ${provider} 模式时必须填写 Bucket`,'error');try{const r=await apiRequest('/api/cache/config',{method:'POST',body:JSON.stringify({enabled:enabled,timeout:timeout,base_url:baseUrl,storage_mode:storageMode,s3_endpoint:$('cfgS3Endpoint').value.trim(),s3_region:$('cfgS3Region').value.trim(),s3_bucket:$('cfgS3Bucket').value.trim(),s3_access_key:$('cfgS3AccessKey').value.trim(),s3_secret_key:$('cfgS3SecretKey').value,s3_use_ssl:$('cfgS3UseSSL').checked,s3_force_path_style:$('cfgS3ForcePathStyle').checked,s3_prefix:$('cfgS3Prefix').value.trim(),s3_public_base_url:s3PublicBaseUrl})});if(!r){console.error('保存缓存配置请求失败');return}const d=await r.json();if(d.success){showToast('缓存配置保存成功','success');await new Promise(r=>setTimeout(r,200));await loadCacheConfig()}else{console.error('保存失败:',d);showToast(d.message||'保存失败','error')}}catch(e){console.error('保存失败:',e);showToast('保存失败: '+e.message,'error')}},
+        saveGenerationTimeout=async()=>{const imageTimeout=parseInt($('cfgImageTimeout').value)||300,videoTimeout=parseInt($('cfgVideoTimeout').value)||1500,maxRetries=parseInt($('cfgMaxRetries').value)||3,totalTimeout=imageTimeout+videoTimeout;console.log('保存生成配置:',{imageTimeout,videoTimeout,totalTimeout,maxRetries});if(imageTimeout<60||imageTimeout>3600)return showToast('音乐生成超时时间必须在 60-3600 秒之间','error');if(videoTimeout<60||videoTimeout>7200)return showToast('素材轮询超时时间必须在 60-7200 秒之间','error');if(maxRetries<1)return showToast('最大重试次数不能小于 1','error');try{const r=await apiRequest('/api/generation/timeout',{method:'POST',body:JSON.stringify({timeout:totalTimeout,image_timeout:imageTimeout,video_timeout:videoTimeout,max_retries:maxRetries})});if(!r){console.error('保存请求失败');return}const d=await r.json();console.log('保存结果:',d);if(d.success){showToast('生成配置保存成功','success');await new Promise(r=>setTimeout(r,200));await loadGenerationTimeout()}else{console.error('保存失败:',d);showToast('保存失败','error')}}catch(e){console.error('保存失败:',e);showToast('保存失败: '+e.message,'error')}},
+        saveCallLogicConfig=async()=>{const callMode=$('cfgCallLogicMode').value||'default';try{const r=await apiRequest('/api/call-logic/config',{method:'POST',body:JSON.stringify({call_mode:callMode})});if(!r)return;const d=await r.json();if(d.success){showToast('Token轮询配置保存成功','success');await loadCallLogicConfig()}else{showToast(d.message||'保存失败','error')}}catch(e){console.error('保存轮询模式配置失败:',e);showToast('保存轮询模式配置失败: '+e.message,'error')}},
+        testCacheConfig=async()=>{const enabled=$('cfgCacheEnabled').checked;const timeoutInput=$('cfgCacheTimeout').value.trim();const timeout=timeoutInput===''?7200:parseInt(timeoutInput,10);const baseUrl=$('cfgCacheBaseUrl').value.trim();const storageMode=$('cfgCacheStorageMode').value||'local';const provider=objectStorageLabel(storageMode);const s3PublicBaseUrl=storageMode==='r2'?'':$('cfgS3PublicBaseUrl').value.trim();if(Number.isNaN(timeout)||timeout<0||timeout>86400)return showToast('缓存超时时间必须在 0-86400 秒之间，0 表示不删除','error');if(baseUrl&&!baseUrl.startsWith('http://')&&!baseUrl.startsWith('https://'))return showToast('缓存文件访问域名必须以 http:// 或 https:// 开头','error');if(storageMode!=='r2'&&s3PublicBaseUrl&&!s3PublicBaseUrl.startsWith('http://')&&!s3PublicBaseUrl.startsWith('https://'))return showToast(`${provider} 公网访问前缀必须以 http:// 或 https:// 开头`,'error');if(isObjectStorageMode(storageMode)&&!$('cfgS3Endpoint').value.trim())return showToast(`请选择 ${provider} 模式时必须填写 Endpoint`,'error');if(isObjectStorageMode(storageMode)&&!$('cfgS3Bucket').value.trim())return showToast(`请选择 ${provider} 模式时必须填写 Bucket`,'error');try{showToast('正在测试缓存配置...','info');const r=await apiRequest('/api/cache/test',{method:'POST',body:JSON.stringify({enabled:enabled,timeout:timeout,base_url:baseUrl,storage_mode:storageMode,s3_endpoint:$('cfgS3Endpoint').value.trim(),s3_region:$('cfgS3Region').value.trim(),s3_bucket:$('cfgS3Bucket').value.trim(),s3_access_key:$('cfgS3AccessKey').value.trim(),s3_secret_key:$('cfgS3SecretKey').value,s3_use_ssl:$('cfgS3UseSSL').checked,s3_force_path_style:$('cfgS3ForcePathStyle').checked,s3_prefix:$('cfgS3Prefix').value.trim(),s3_public_base_url:s3PublicBaseUrl})});if(!r)return;const d=await r.json();if(d.success){const url=d.media&&d.media.url?`，测试URL: ${d.media.url}`:'';showToast(`缓存配置测试成功${url}`,'success')}else{showToast('缓存配置测试失败: '+(d.message||d.detail||'未知错误'),'error')}}catch(e){showToast('缓存配置测试失败: '+e.message,'error')}},
+        toggleATAutoRefresh=async()=>{try{const enabled=$('atAutoRefreshToggle').checked;const r=await apiRequest('/api/token-refresh/enabled',{method:'POST',body:JSON.stringify({enabled:enabled})});if(!r){$('atAutoRefreshToggle').checked=!enabled;return}const d=await r.json();if(d.success){showToast(enabled?'AT自动刷新已启用':'AT自动刷新已禁用','success')}else{showToast('操作失败: '+(d.detail||'未知错误'),'error');$('atAutoRefreshToggle').checked=!enabled}}catch(e){showToast('操作失败: '+e.message,'error');$('atAutoRefreshToggle').checked=!enabled}},
+        loadATAutoRefreshConfig=async()=>{try{const r=await apiRequest('/api/token-refresh/config');if(!r)return;const d=await r.json();if(d.success&&d.config){$('atAutoRefreshToggle').checked=d.config.at_auto_refresh_enabled||false}else{console.error('AT自动刷新配置数据格式错误:',d)}}catch(e){console.error('加载AT自动刷新配置失败:',e)}},
+        formatLogStatus=l=>{
+            const statusText=(l.status_text||'').trim();
+            if(statusText){
+                const map={started:'已启动',queued:'排队中',token_selected:'已选中账号',token_ready:'账号已就绪',streaming:'等待上游流式结果',polling:'轮询歌曲素材',caching:'缓存媒体中',completed:'已完成',success:'已完成',failed:'失败',processing:'处理中',running:'处理中'};
+                return map[statusText]||statusText;
+            }
+            if(l.status_code===102)return'处理中';
+            if(l.status_code===200)return'已完成';
+            if(l.status_code&&l.status_code>=400)return'失败';
+            return'-';
+        },
+        formatLogStatusClass=l=>{
+            const rawStatus=String(l&&l.status_text||'').trim();
+            if(rawStatus==='completed'||l.status_code===200)return'border border-green-200 bg-green-50 text-green-700';
+            if(rawStatus==='failed'||(l.status_code&&l.status_code>=400))return'border border-red-200 bg-red-50 text-red-700';
+            if(rawStatus||l.status_code===102)return'border border-amber-200 bg-amber-50 text-amber-700';
+            return'border border-slate-200 bg-slate-100 text-slate-700';
+        },
+        formatLogProgress=l=>{
+            if(l.progress===null||l.progress===undefined||l.progress==='')return'-';
+            const progress=Number(l.progress);
+            return Number.isFinite(progress)?`${Math.max(0,Math.min(100,progress))}%`:'-';
+        },
+        getLogOperationLabel=l=>{
+            const operation=String(l&&l.operation||'').trim();
+            if(operation==='music.generate'||operation.includes('music'))return'音乐';
+            if(operation.startsWith('generate:')||operation.startsWith('generate'))return'生成';
+            return'请求';
+        },
+        getLogOperationModel=l=>{
+            const operation=String(l&&l.operation||'').trim();
+            if(!operation)return'-';
+            const idx=operation.indexOf(':');
+            if(idx===-1)return operation;
+            const model=operation.slice(idx+1).trim();
+            return model||operation.slice(0,idx).trim()||'-';
+        },
+        getLogOperationBadgeClass=l=>{
+            const label=getLogOperationLabel(l);
+            if(label==='音乐')return'border-blue-200 bg-blue-50 text-blue-700';
+            return'border-slate-200 bg-slate-100 text-slate-700';
+        },
+        formatLogOutcome=l=>{
+            const statusCode=Number(l&&l.status_code);
+            if(statusCode===200){
+                const operationLabel=getLogOperationLabel(l);
+                return operationLabel?`${operationLabel}结果已返回`:'已返回结果';
+            }
+            if(statusCode===102)return'处理中';
+            const errorSummary=extractLogErrorSummary(l);
+            if(errorSummary)return truncateLogText(errorSummary,96);
+            return statusCode>=400?'请求失败':'-';
+        },
+        formatLogOutcomeClass=l=>{
+            if((l.status_code||0)>=400)return'text-red-600';
+            if(l.status_code===200)return'text-green-700';
+            if(l.status_code===102)return'text-amber-700';
+            return'text-muted-foreground';
+        },
+        formatLogDateTimeParts=value=>{
+            if(!value)return{date:'-',time:''};
+            const dateValue=new Date(value);
+            if(Number.isNaN(dateValue.getTime()))return{date:'-',time:''};
+            return{
+                date:dateValue.toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-'),
+                time:dateValue.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})
+            };
+        },
+        createdAtLabel=parts=>{
+            if(!parts)return'-';
+            if(parts.date==='-'&&!parts.time)return'-';
+            return `${parts.date} ${parts.time||'-'}`;
+        },
+        formatLogDurationSeconds=value=>{
+            const duration=Number(value||0);
+            return Number.isFinite(duration)?`${Math.max(0,duration).toFixed(2)}秒`:'-';
+        },
+        formatLogDurationMS=value=>{
+            const duration=Number(value||0);
+            return Number.isFinite(duration)?`${Math.max(0,duration/1000).toFixed(2)}秒`:'-';
+        },
+        renderLogOperationCell=l=>{
+            const label=getLogOperationLabel(l);
+            const model=getLogOperationModel(l);
+            return `<div class="flex min-w-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getLogOperationBadgeClass(l)}">${escapeLogHtml(label)}</span><span class="min-w-0 truncate text-sm font-mono font-medium text-foreground" title="${escapeLogHtml(model)}">${escapeLogHtml(model)}</span></div>`;
+        },
+        renderActiveTasks=(tasks=[])=>{
+            const list=$('activeTasksList');
+            const count=$('activeTasksCount');
+            const badge=$('activeTasksBadge');
+            if(!list||!count||!badge)return;
+            const safeTasks=Array.isArray(tasks)?tasks:[];
+            const visibleTasks=safeTasks.slice(0,100);
+            const hiddenCount=Math.max(0,safeTasks.length-visibleTasks.length);
+            count.textContent=String(safeTasks.length);
+            badge.textContent=String(safeTasks.length);
+            if(!safeTasks.length){
+                list.className='grid gap-3';
+                list.innerHTML='<div class="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">当前没有进行中的任务，新请求进来后会在这里实时显示。</div>';
+                return;
+            }
+            list.className='grid gap-3 lg:grid-cols-2';
+            const overflowNotice=hiddenCount>0?`<div class="rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-sm text-blue-700 lg:col-span-2">当前仅展示最近更新的 100 个任务，其余 ${hiddenCount} 个任务仍在运行，可通过顶部数量查看总量。</div>`:'';
+            list.innerHTML=overflowNotice+visibleTasks.map(task=>{
+                const statusText=formatLogStatus(task);
+                const statusClass=formatLogStatusClass(task);
+                const operationLabel=getLogOperationLabel(task);
+                const operationModel=getLogOperationModel(task);
+                const startedAt=formatLogDateTimeParts(task.started_at);
+                return `<div class="min-w-0 rounded-lg border border-border bg-muted/10 p-4 transition-colors hover:bg-muted/20"><div class="flex min-w-0 items-center justify-between gap-3"><div class="flex min-w-0 items-center gap-2"><span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getLogOperationBadgeClass(task)}">${escapeLogHtml(operationLabel)}</span><span class="min-w-0 truncate text-sm font-mono font-medium text-foreground" title="${escapeLogHtml(operationModel)}">${escapeLogHtml(operationModel)}</span></div><span class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${statusClass}">${escapeLogHtml(statusText)}</span></div><div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground"><span class="whitespace-nowrap">进度 <b class="text-foreground">${escapeLogHtml(formatLogProgress(task))}</b></span><span class="whitespace-nowrap">耗时 <b class="text-foreground">${escapeLogHtml(formatLogDurationMS(task.duration_ms))}</b></span><span class="whitespace-nowrap">开始 <b class="text-foreground">${escapeLogHtml(createdAtLabel(startedAt))}</b></span></div></div>`;
+            }).join('');
+        },
+        startLogsAutoRefresh=()=>{
+            stopLogsAutoRefresh();
+            window.logsAutoRefreshTimer=window.setInterval(()=>{
+                const panel=$('panelLogs');
+                if(panel&&!panel.classList.contains('hidden'))refreshLogs({silent:true});
+            },2500);
+        },
+        stopLogsAutoRefresh=()=>{
+            if(window.logsAutoRefreshTimer){
+                clearInterval(window.logsAutoRefreshTimer);
+                window.logsAutoRefreshTimer=null;
+            }
+        },
+        loadActiveTasks=async(opts={})=>{
+            const silent=!!opts.silent;
+            try{
+                const r=await apiRequest('/api/logs/active');
+                if(!r)return;
+                const tasks=await r.json();
+                window.activeTasks=Array.isArray(tasks)?tasks:[];
+                renderActiveTasks(window.activeTasks);
+            }catch(e){
+                console.error('load active tasks failed:',e);
+                if(!silent)showToast('加载进行中任务失败: '+e.message,'error');
+            }
+        },
+        loadLogs=async(opts={})=>{
+            const silent=!!opts.silent;
+            try{
+                const r=await apiRequest('/api/logs?limit=100');
+                if(!r)return;
+                const logs=await r.json();
+                const count=$('completedLogsCount');
+                if(count)count.textContent=String(Array.isArray(logs)?logs.length:0);
+                window.allLogs=logs;
+                window.logDetailCache=window.logDetailCache||Object.create(null);
+                window.logListMeta=Object.create(null);
+                logs.forEach(l=>window.logListMeta[l.id]={updated_at:l.updated_at,created_at:l.created_at,status_code:l.status_code,progress:l.progress,status_text:l.status_text,error_summary:l.error_summary||''});
+                Object.keys(window.logDetailCache).forEach(key=>{
+                    const meta=window.logListMeta[key];
+                    const cached=window.logDetailCache[key];
+                    if(!meta||!cached||cached.updated_at!==meta.updated_at)delete window.logDetailCache[key];
+                });
+                const tb=$('logsTableBody');
+                if(!logs.length){
+                    tb.innerHTML='<tr><td colspan="7" class="py-8 px-3 text-center text-sm text-muted-foreground">暂无日志</td></tr>';
+                    return;
+                }
+                tb.innerHTML=logs.map(l=>{
+                    const statusText=formatLogStatus(l);
+                    const progressText=formatLogProgress(l);
+                    const createdAt=formatLogDateTimeParts(l.created_at);
+                    const durationText=formatLogDurationSeconds(l.duration);
+                    const statusCodeValue=l.status_code!==null&&l.status_code!==undefined?String(l.status_code):'-';
+                    const statusCodeClass=l.status_code===102?'border border-amber-200 bg-amber-50 text-amber-700':(l.status_code===200?'border border-green-200 bg-green-50 text-green-700':(l.status_code===null||l.status_code===undefined?'border border-slate-200 bg-slate-100 text-slate-700':'border border-red-200 bg-red-50 text-red-700'));
+                    return `<tr class="align-top transition-colors hover:bg-muted/20"><td class="py-3 px-3">${renderLogOperationCell(l)}</td><td class="py-3 px-3 whitespace-nowrap"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${formatLogStatusClass(l)}">${escapeLogHtml(statusText)}</span></td><td class="py-3 px-3 whitespace-nowrap"><span class="text-sm font-medium text-foreground">${escapeLogHtml(progressText)}</span></td><td class="py-3 px-3 whitespace-nowrap"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${statusCodeClass}">${escapeLogHtml(statusCodeValue)}</span></td><td class="py-3 px-3 whitespace-nowrap"><div class="text-sm font-medium text-foreground">${escapeLogHtml(durationText)}</div></td><td class="py-3 px-3 whitespace-nowrap"><div class="truncate text-xs text-muted-foreground" title="${escapeLogHtml(`${createdAt.date} ${createdAt.time||'-'}`)}">${escapeLogHtml(createdAt.date)} <span class="font-mono">${escapeLogHtml(createdAt.time||'-')}</span></div></td><td class="py-3 px-3 whitespace-nowrap"><button onclick="showLogDetail(${l.id})" class="inline-flex items-center justify-center rounded-md hover:bg-blue-50 hover:text-blue-700 h-8 px-2.5 text-xs font-medium">详情</button></td></tr>`;
+                }).join('');
+                if(window.activeLogDetailId&&window.logListMeta[window.activeLogDetailId])await showLogDetail(window.activeLogDetailId,{silent:true});
+            }catch(e){
+                console.error('load logs failed:',e);
+                if(!silent)showToast('加载日志失败: '+e.message,'error');
+            }
+        },
+        refreshLogs=async(opts={})=>{
+            if(window.logsRefreshInFlight)return;
+            window.logsRefreshInFlight=true;
+            try{
+                await Promise.allSettled([loadActiveTasks(opts),loadLogs(opts)]);
+            }finally{
+                window.logsRefreshInFlight=false;
+            }
+        },
+        clearAllLogs=async()=>{
+            if(!confirm('确定要清空所有日志吗？此操作不可恢复！'))return;
+            try{
+                const r=await apiRequest('/api/logs',{method:'DELETE'});
+                if(!r)return;
+                const d=await r.json();
+                if(d.success){
+                    window.logDetailCache=Object.create(null);
+                    window.activeLogDetailId=null;
+                    resetLogMediaCache();
+                    showToast('日志已清空','success');
+                    await refreshLogs();
+                }else{
+                    showToast('清空失败: '+(d.message||'未知错误'),'error');
+                }
+            }catch(e){
+                showToast('清空失败: '+e.message,'error');
+            }
+        },
+        showLogDetail=async(logId,opts={})=>{const silent=!!opts.silent;const modal=$('logDetailModal');const content=$('logDetailContent');window.logDetailCache=window.logDetailCache||Object.create(null);window.logListMeta=window.logListMeta||Object.create(null);window.logDetailRequestSeq=(window.logDetailRequestSeq||0)+1;const requestSeq=window.logDetailRequestSeq;window.activeLogDetailId=logId;modal.classList.remove('hidden');if(!silent||content.dataset.logId!==String(logId))content.innerHTML='<div class="rounded-md border border-border p-4 bg-muted/30 text-sm text-muted-foreground">\u65e5\u5fd7\u8be6\u60c5\u52a0\u8f7d\u4e2d...</div>';try{const meta=window.logListMeta[logId];let log=window.logDetailCache[logId];const unchanged=log&&meta&&log.updated_at===meta.updated_at;if(silent&&unchanged&&content.dataset.logId===String(logId))return;if(!unchanged){const r=await apiRequest(`/api/logs/${logId}`);if(!r)return;if(window.logDetailRequestSeq!==requestSeq||window.activeLogDetailId!==logId||modal.classList.contains('hidden'))return;if(r.status===404){content.innerHTML='<div class="rounded-md border border-red-200 p-4 bg-red-50 text-sm text-red-700">\u65e5\u5fd7\u4e0d\u5b58\u5728\u6216\u5df2\u88ab\u5220\u9664</div>';return}log=await r.json();window.logDetailCache[logId]=log}if(window.logDetailRequestSeq!==requestSeq||window.activeLogDetailId!==logId||modal.classList.contains('hidden'))return;renderLogDetail(log)}catch(e){if(window.logDetailRequestSeq!==requestSeq||window.activeLogDetailId!==logId||modal.classList.contains('hidden'))return;console.error('\u52a0\u8f7d\u65e5\u5fd7\u8be6\u60c5\u5931\u8d25:',e);content.innerHTML=`<div class="rounded-md border border-red-200 p-4 bg-red-50 text-sm text-red-700">\u52a0\u8f7d\u65e5\u5fd7\u8be6\u60c5\u5931\u8d25: ${escapeLogHtml(e.message||'\u672a\u77e5\u9519\u8bef')}</div>`;if(!silent)showToast('\u52a0\u8f7d\u65e5\u5fd7\u8be6\u60c5\u5931\u8d25: '+e.message,'error')}},
+        closeLogDetailModal=()=>{window.activeLogDetailId=null;resetLogMediaCache();$('logDetailModal').classList.add('hidden')},
+        showToast=(m,t='info')=>{const d=document.createElement('div'),bc={success:'bg-green-600',error:'bg-destructive',info:'bg-primary'};d.className=`fixed bottom-4 right-4 ${bc[t]||bc.info} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up`;d.textContent=m;document.body.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.parentNode&&document.body.removeChild(d),300)},2000)},
+        logout=()=>{if(!confirm('确定要退出登录吗?'))return;localStorage.removeItem('adminToken');location.href='/login'},
+        switchTab=t=>{const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);['tokens','settings','logs','test'].forEach(n=>{const active=n===t;$(`panel${cap(n)}`).classList.toggle('hidden',!active);$(`tab${cap(n)}`).classList.toggle('border-primary',active);$(`tab${cap(n)}`).classList.toggle('text-primary',active);$(`tab${cap(n)}`).classList.toggle('border-transparent',!active);$(`tab${cap(n)}`).classList.toggle('text-muted-foreground',!active)});if(t==='settings'){stopLogsAutoRefresh();loadAdminConfig();loadProxyConfig();loadCacheConfig();loadGenerationTimeout();loadCallLogicConfig();loadATAutoRefreshConfig()}else if(t==='logs'){startLogsAutoRefresh();refreshLogs()}else if(t==='test'){stopLogsAutoRefresh();initTestPanel()}else{stopLogsAutoRefresh()}};
+
+        async function initTestPanel(){
+            attachTestModelListHandler();
+            await ensureTestAPIKey();
+            await loadTestModels();
+        }
+
+        async function ensureTestAPIKey(){
+            if(window.currentAPIKey)return window.currentAPIKey;
+            await loadAdminConfig();
+            return window.currentAPIKey||($('cfgCurrentAPIKey')&&$('cfgCurrentAPIKey').value)||'';
+        }
+
+        async function loadTestModels(force=false){
+            const list=$('testModelList');
+            if(!force&&testState.modelsLoaded&&Object.keys(testState.models).length){renderTestModels();return}
+            if(list)list.innerHTML='<div class="rounded-lg border border-border bg-muted/20 p-6 text-sm text-muted-foreground">正在加载模型列表...</div>';
+            try{
+                const apiKey=await ensureTestAPIKey();
+                if(!apiKey)throw new Error('当前 API Key 为空，请先在系统配置中生成或更新 API Key');
+                const endpoints=['/v1/models','/v1/models/aliases'];
+                const results=await Promise.allSettled(endpoints.map(async endpoint=>{
+                    const resp=await fetch(endpoint,{headers:{Authorization:`Bearer ${apiKey}`}});
+                    if(!resp.ok)throw new Error(`${endpoint} HTTP ${resp.status}`);
+                    return {endpoint,data:await resp.json()};
+                }));
+                const models={};
+                const errors=[];
+                results.forEach(result=>{
+                    if(result.status!=='fulfilled'){errors.push(result.reason&&result.reason.message||String(result.reason));return}
+                    const items=Array.isArray(result.value.data.data)?result.value.data.data:[];
+                    items.forEach(item=>{
+                        if(!item||!item.id)return;
+                        models[item.id]={description:item.description||'',isAlias:!!item.is_alias||result.value.endpoint.includes('aliases')};
+                    });
+                });
+                if(!Object.keys(models).length){
+                    Object.entries(TEST_FALLBACK_MODELS).forEach(([id,description])=>models[id]={description,isAlias:true});
+                    if(errors.length)appendTestLog(`模型接口加载失败，已使用内置候选模型: ${errors.join(' | ')}`);
+                }
+                testState.models=models;
+                testState.modelsLoaded=true;
+                renderTestModels();
+            }catch(e){
+                testState.models={};
+                Object.entries(TEST_FALLBACK_MODELS).forEach(([id,description])=>testState.models[id]={description,isAlias:true});
+                testState.modelsLoaded=true;
+                renderTestModels();
+                appendTestLog(`模型列表加载失败，已使用内置候选模型: ${e.message}`);
+            }
+        }
+
+        function renderTestModels(){
+            const list=$('testModelList');
+            const count=$('testModelCount');
+            if(!list)return;
+            const ids=Object.keys(testState.models).sort();
+            if(count)count.textContent=`${ids.length} 个模型`;
+            if(!ids.length){
+                list.innerHTML='<div class="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">未获取到可用模型。</div>';
+                return;
+            }
+            const seen=new Set();
+            const sections=[];
+            TEST_MODEL_CATEGORIES.forEach(category=>{
+                const models=ids.filter(id=>!seen.has(id)&&category.filter(id));
+                if(!models.length)return;
+                models.forEach(id=>seen.add(id));
+                const items=models.map(id=>{
+                    const model=testState.models[id]||{};
+                    const meta=getTestModelMeta(id);
+                    const active=id===testState.selectedModel;
+                    const tagClass='border-blue-200 bg-blue-50 text-blue-700';
+                    return `<button type="button" data-model-id="${escapeAttr(id)}" class="w-full min-w-0 rounded-md border px-3 py-2 text-left transition-colors ${active?'border-primary bg-muted':'border-transparent hover:bg-muted/60'}"><div class="flex min-w-0 items-center justify-between gap-2"><span class="min-w-0 truncate text-sm font-mono font-medium" title="${escapeLogHtml(id)}">${escapeLogHtml(id)}</span><span class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${tagClass}">${escapeLogHtml(meta.label)}</span></div><p class="mt-1 truncate text-xs text-muted-foreground" title="${escapeLogHtml(model.description||'')}">${escapeLogHtml(model.description||'-')}</p></button>`;
+                }).join('');
+                sections.push(`<div class="mb-4 last:mb-0"><div class="mb-2 flex items-center justify-between gap-2 px-1"><h5 class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">${escapeLogHtml(category.name)}</h5><span class="text-xs text-muted-foreground">${models.length}</span></div><div class="space-y-1">${items}</div></div>`);
+            });
+            list.innerHTML=sections.join('');
+        }
+
+        function attachTestModelListHandler(){
+            const list=$('testModelList');
+            if(!list||list.dataset.boundModelHandler)return;
+            list.dataset.boundModelHandler='1';
+            list.addEventListener('click',event=>{
+                const button=event.target.closest('[data-model-id]');
+                if(!button||!list.contains(button))return;
+                selectTestModel(button.dataset.modelId);
+            });
+        }
+
+        function getTestModelMeta(modelId){
+            return{type:'music',label:'音乐'};
+        }
+
+        function selectTestModel(modelId){
+            testState.selectedModel=modelId;
+            testState.modelConfig=getTestModelMeta(modelId);
+            renderTestModels();
+            const model=testState.models[modelId]||{};
+            const meta=testState.modelConfig;
+            $('testSelectedModelName').textContent=modelId;
+            $('testSelectedModelInfo').textContent=model.description||'可发起 OpenAI 兼容接口测试';
+            const typeBadge=$('testSelectedModelType');
+            typeBadge.textContent=meta.label+(model.isAlias?' / 别名':'');
+            typeBadge.className='inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium border-blue-200 bg-blue-50 text-blue-700';
+            $('btnTestGenerate').disabled=false;
+            $('btnConcurrentTest').disabled=false;
+        }
+
+        function validateTestRequest(){
+            if(!testState.selectedModel)return'请先选择模型';
+            const prompt=($('testPromptInput').value||'').trim();
+            if(!prompt)return'请输入提示词';
+            return'';
+        }
+
+        function buildTestMessages(){
+            const prompt=($('testPromptInput').value||'').trim();
+            return[{role:'user',content:prompt}];
+        }
+
+        async function requestModelCompletion(stream,logStream=true){
+            const apiKey=await ensureTestAPIKey();
+            if(!apiKey)throw new Error('当前 API Key 为空');
+            const resp=await fetch('/v1/chat/completions',{
+                method:'POST',
+                headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
+                body:JSON.stringify({model:testState.selectedModel,messages:buildTestMessages(),stream})
+            });
+            if(!resp.ok){
+                const text=await resp.text();
+                throw new Error(`HTTP ${resp.status}: ${truncateLogText(text,500)}`);
+            }
+            if(stream)return await readTestStream(resp,logStream);
+            return await resp.json();
+        }
+
+        async function readTestStream(resp,logChunks=true){
+            if(!resp.body)throw new Error('响应不支持流式读取');
+            const reader=resp.body.getReader();
+            const decoder=new TextDecoder();
+            let buffer='';
+            let fullContent='';
+            while(true){
+                const {done,value}=await reader.read();
+                if(done)break;
+                buffer+=decoder.decode(value,{stream:true});
+                const lines=buffer.split('\n');
+                buffer=lines.pop()||'';
+                for(const line of lines){
+                    if(!line.startsWith('data: '))continue;
+                    const raw=line.slice(6).trim();
+                    if(!raw||raw==='[DONE]')continue;
+                    try{
+                        const parsed=JSON.parse(raw);
+                        if(parsed.error)throw new Error(parsed.error.message||JSON.stringify(parsed.error));
+                        const delta=parsed.choices&&parsed.choices[0]&&parsed.choices[0].delta||{};
+                        const chunk=delta.reasoning_content||delta.content||'';
+                        if(chunk){
+                            fullContent+=chunk;
+                            if(logChunks)appendTestLog(chunk,false);
+                        }
+                    }catch(e){
+                        if(e instanceof SyntaxError)continue;
+                        throw e;
+                    }
+                }
+            }
+            return fullContent;
+        }
+
+        async function runSingleModelTest(){
+            if(testState.generating||testState.concurrentRunning)return;
+            const validation=validateTestRequest();
+            if(validation)return showToast(validation,'error');
+            clearTestOutput();
+            testState.generating=true;
+            setTestButtonsDisabled(true);
+            const started=Date.now();
+            try{
+                $('testStatusText').textContent='单次生成测试中...';
+                appendTestLog(`[${new Date().toLocaleTimeString()}] 模型: ${testState.selectedModel}`);
+                appendTestLog(`[${new Date().toLocaleTimeString()}] 开始流式请求`);
+                const content=await requestModelCompletion(true,true);
+                const elapsed=Date.now()-started;
+                appendTestLog(`\n[${new Date().toLocaleTimeString()}] 完成，耗时 ${formatTestDuration(elapsed)}`);
+                renderTestResult(content,null);
+                updateTestStats(1,0,elapsed,elapsed,elapsed,elapsed);
+                $('testStatusText').textContent=`单次测试完成，耗时 ${formatTestDuration(elapsed)}`;
+            }catch(e){
+                const elapsed=Date.now()-started;
+                appendTestLog(`\n请求失败: ${e.message}`);
+                updateTestStats(0,1,elapsed,elapsed,elapsed,elapsed);
+                $('testStatusText').textContent='单次测试失败';
+                showToast('单次测试失败: '+e.message,'error');
+            }finally{
+                testState.generating=false;
+                setTestButtonsDisabled(false);
+            }
+        }
+
+        async function runConcurrentModelTest(){
+            if(testState.generating||testState.concurrentRunning)return;
+            const validation=validateTestRequest();
+            if(validation)return showToast(validation,'error');
+            let concurrency=parseInt($('testConcurrencyInput').value,10);
+            let requestCount=parseInt($('testRequestCountInput').value,10);
+            if(!Number.isFinite(concurrency)||concurrency<1)return showToast('并发数必须大于 0','error');
+            if(!Number.isFinite(requestCount)||requestCount<1)return showToast('请求次数必须大于 0','error');
+            concurrency=Math.min(concurrency,requestCount,10000);
+            clearTestOutput();
+            testState.concurrentRunning=true;
+            setTestButtonsDisabled(true);
+            const started=Date.now();
+            let next=0,completed=0,success=0,failed=0,totalDuration=0,minDuration=Infinity,maxDuration=0,lastPaint=0;
+            let sampleResult=null;
+            appendTestLog(`[${new Date().toLocaleTimeString()}] 模型: ${testState.selectedModel}`);
+            appendTestLog(`[${new Date().toLocaleTimeString()}] 并发测试开始，并发 ${concurrency}，总请求 ${requestCount}`);
+            $('testStatusText').textContent=`并发测试中: 0/${requestCount}`;
+            const paint=force=>{
+                const now=Date.now();
+                if(!force&&now-lastPaint<300)return;
+                lastPaint=now;
+                updateTestStats(success,failed,totalDuration,minDuration===Infinity?0:minDuration,maxDuration,now-started);
+                $('testStatusText').textContent=`并发测试中: ${completed}/${requestCount}，成功 ${success}，失败 ${failed}`;
+            };
+            const worker=async()=>{
+                while(true){
+                    const index=next++;
+                    if(index>=requestCount)return;
+                    const reqStarted=Date.now();
+                    try{
+                        const data=await requestModelCompletion(true,false);
+                        const elapsed=Date.now()-reqStarted;
+                        success++;
+                        totalDuration+=elapsed;
+                        minDuration=Math.min(minDuration,elapsed);
+                        maxDuration=Math.max(maxDuration,elapsed);
+                        if(!sampleResult)sampleResult=data;
+                    }catch(e){
+                        const elapsed=Date.now()-reqStarted;
+                        failed++;
+                        totalDuration+=elapsed;
+                        minDuration=Math.min(minDuration,elapsed);
+                        maxDuration=Math.max(maxDuration,elapsed);
+                        if(requestCount<=200||failed<=10)appendTestLog(`请求 ${index+1} 失败: ${e.message}`);
+                    }finally{
+                        completed++;
+                        if(requestCount<=100)appendTestLog(`请求 ${index+1} 完成，当前 ${completed}/${requestCount}`);
+                        paint(false);
+                    }
+                }
+            };
+            try{
+                await Promise.all(Array.from({length:concurrency},()=>worker()));
+                const elapsed=Date.now()-started;
+                paint(true);
+                $('testStatusText').textContent=`并发测试完成: 成功 ${success}，失败 ${failed}，总耗时 ${formatTestDuration(elapsed)}`;
+                appendTestLog(`[${new Date().toLocaleTimeString()}] 并发测试完成，成功 ${success}，失败 ${failed}，总耗时 ${formatTestDuration(elapsed)}`);
+                if(completed>0)appendTestLog(`平均 ${formatTestDuration(totalDuration/completed)}，最快 ${formatTestDuration(minDuration===Infinity?0:minDuration)}，最慢 ${formatTestDuration(maxDuration)}`);
+                if(sampleResult)renderTestResult(extractTestContent(sampleResult),sampleResult);
+            }catch(e){
+                appendTestLog(`并发测试异常: ${e.message}`);
+                $('testStatusText').textContent='并发测试异常';
+                showToast('并发测试异常: '+e.message,'error');
+            }finally{
+                testState.concurrentRunning=false;
+                setTestButtonsDisabled(false);
+            }
+        }
+
+        function setTestButtonsDisabled(disabled){
+            $('btnTestGenerate').disabled=disabled||!testState.selectedModel;
+            $('btnConcurrentTest').disabled=disabled||!testState.selectedModel;
+        }
+
+        function updateTestStats(success,failed,total,min,max,wall){
+            const completed=success+failed;
+            $('testSuccessCount').textContent=String(success||0);
+            $('testFailCount').textContent=String(failed||0);
+            $('testAvgDuration').textContent=completed?formatTestDuration(total/completed):'-';
+            $('testTotalDuration').textContent=wall?formatTestDuration(wall):'-';
+        }
+
+        function clearTestOutput(){
+            $('testOutputLog').textContent='准备就绪。\n';
+            $('testOutputResult').innerHTML='';
+            $('testStatusText').textContent='等待测试。';
+            updateTestStats(0,0,0,0,0,0);
+        }
+
+        function appendTestLog(text,newLine=true){
+            const log=$('testOutputLog');
+            if(!log)return;
+            if(log.textContent.trim()==='准备就绪。')log.textContent='';
+            log.textContent+=String(text)+(newLine?'\n':'');
+            if(log.textContent.length>60000)log.textContent=log.textContent.slice(-50000);
+            log.scrollTop=log.scrollHeight;
+        }
+
+        function formatTestDuration(ms){
+            const value=Number(ms||0);
+            if(value<1000)return `${Math.max(0,Math.round(value))}ms`;
+            return `${(value/1000).toFixed(2)}秒`;
+        }
+
+        function extractTestContent(data){
+            if(typeof data==='string')return data;
+            return data&&data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content||'';
+        }
+
+        function extractTestMediaUrls(content,data){
+            const urls=[];
+            const add=url=>{if(url&&!urls.includes(url))urls.push(url)};
+            const text=String(content||'');
+            let match;
+            const imgRegex=/!\[[^\]]*\]\(([^)]+)\)/g;
+            while((match=imgRegex.exec(text))!==null)add(match[1]);
+            const videoRegex=/<video[^>]+src=['"]([^'"]+)['"]/gi;
+            while((match=videoRegex.exec(text))!==null)add(match[1]);
+            const urlRegex=/(https?:\/\/[^\s)<>"']+|\/tmp\/[^\s)<>"']+)/g;
+            while((match=urlRegex.exec(text))!==null)add(match[1]);
+            if(data&&typeof data==='object'){
+                add(data.url);
+                const assets=data.generated_assets||{};
+                add(assets.final_image_url);
+                add(assets.final_video_url);
+                add(assets.origin_image_url);
+                add(assets.origin_video_url);
+                if(Array.isArray(data.clips)){
+                    data.clips.forEach(clip=>{
+                        if(clip.audio)add(clip.audio.url||clip.audio.local_url);
+                        if(clip.wav)add(clip.wav.url||clip.wav.local_url);
+                        if(clip.image)add(clip.image.url||clip.image.local_url);
+                        if(clip.video)add(clip.video.url||clip.video.local_url);
+                    });
+                }
+            }
+            return urls.map(normalizeLogMediaUrl);
+        }
+
+        function renderTestResult(content,data){
+            const result=$('testOutputResult');
+            result.innerHTML='';
+            const urls=extractTestMediaUrls(content,data);
+            urls.forEach(url=>{
+                if(isAudioUrl(url)){
+                    result.insertAdjacentHTML('beforeend',`<audio src="${escapeAttr(url)}" controls preload="metadata" class="w-full"></audio>`);
+                }else if(isVideoUrl(url)){
+                    result.insertAdjacentHTML('beforeend',`<video src="${escapeAttr(url)}" controls preload="metadata" class="max-h-[520px] w-full rounded-lg border border-border bg-black"></video>`);
+                }else if(isImageUrl(url)){
+                    result.insertAdjacentHTML('beforeend',`<a href="${escapeAttr(url)}" target="_blank" class="block"><img src="${escapeAttr(url)}" alt="生成结果" loading="lazy" class="max-h-[520px] w-full rounded-lg border border-border object-contain"></a>`);
+                }
+            });
+            const text=String(content||'').trim();
+            if(text){
+                result.insertAdjacentHTML('beforeend',`<pre class="whitespace-pre-wrap break-words rounded-md border border-border bg-muted/30 p-3 text-xs text-foreground">${escapeLogHtml(text)}</pre>`);
+            }
+        }
+
+        function escapeAttr(text){
+            return escapeLogHtml(text).replace(/`/g,'&#96;');
+        }
+
+        function escapeLogHtml(text){
+            if(text===null||text===undefined) return '';
+            return String(text).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+
+        function parseLogJson(raw){
+            if(!raw) return null;
+            try{return JSON.parse(raw)}catch(_){return null}
+        }
+
+        function getLogEnvelope(source){
+            if(!source) return null;
+            if(typeof source==='string') return parseLogJson(source);
+            return source&&typeof source==='object'&&!Array.isArray(source)?source:null;
+        }
+
+        function getLogResponsePayload(source){
+            const envelope=getLogEnvelope(source);
+            if(!envelope||typeof envelope!=='object'||Array.isArray(envelope)) return envelope;
+            if(Object.prototype.hasOwnProperty.call(envelope,'response')) return envelope.response;
+            return envelope;
+        }
+
+        function getLogErrorPayload(source){
+            const envelope=getLogEnvelope(source);
+            if(envelope&&envelope.error&&typeof envelope.error==='object') return envelope.error;
+            return null;
+        }
+
+        function getLogMeta(source){
+            const envelope=getLogEnvelope(source);
+            if(envelope&&envelope.log_meta&&typeof envelope.log_meta==='object') return envelope.log_meta;
+            return null;
+        }
+
+        function getLogTokenDisplay(log,source){
+            const meta=getLogMeta(source||((log&&log.response_body)||log&&log.response_body_excerpt));
+            return log&&((log.token_email&&log.token_email.trim())||(log.token_username&&log.token_username.trim()))||meta&&meta.token_email||'未知账号';
+        }
+
+        function truncateLogText(text,limit=240){
+            const value=String(text??'').trim().replace(/\s+/g,' ');
+            if(!value) return '';
+            return value.length<=limit?value:`${value.slice(0,limit-3)}...`;
+        }
+
+        function extractLogErrorSummary(log,responseBodyObj){
+            const direct=log&&typeof log.error_summary==='string'?log.error_summary.trim():'';
+            if(direct) return truncateLogText(direct);
+            const envelope=responseBodyObj===undefined?parseLogJson((log&&log.response_body)||log&&log.response_body_excerpt):responseBodyObj;
+            const payload=getLogResponsePayload(envelope);
+            const errorPayload=getLogErrorPayload(envelope);
+            const visit=value=>{
+                if(value===null||value===undefined) return '';
+                if(typeof value==='string') return truncateLogText(value);
+                if(Array.isArray(value)){for(const item of value){const nested=visit(item);if(nested)return nested}return''}
+                if(typeof value==='object'){
+                    for(const key of ['error_summary','error_message','detail','message']){
+                        if(typeof value[key]==='string'&&value[key].trim()) return truncateLogText(value[key]);
+                    }
+                    const errorValue=value.error;
+                    if(typeof errorValue==='string'&&errorValue.trim()) return truncateLogText(errorValue);
+                    if(errorValue&&typeof errorValue==='object'){
+                        for(const key of ['message','detail','reason','code']){
+                            if(typeof errorValue[key]==='string'&&errorValue[key].trim()) return truncateLogText(errorValue[key]);
+                        }
+                    }
+                    for(const key of ['response','data','performance']){
+                        const nested=visit(value[key]);
+                        if(nested) return nested;
+                    }
+                }
+                return '';
+            };
+            const summary=visit(payload)||visit(errorPayload);
+            if(summary) return summary;
+            if(log&&log.response_body&&!payload) return truncateLogText(log.response_body);
+            return '';
+        }
+
+        function extractLogPrimaryUrl(responseBodyObj){
+            const payload=getLogResponsePayload(responseBodyObj);
+            if(!payload||typeof payload!=='object') return null;
+            return payload.url||((payload.clips&&payload.clips[0]&&payload.clips[0].audio&&(payload.clips[0].audio.url||payload.clips[0].audio.local_url))?payload.clips[0].audio.url||payload.clips[0].audio.local_url:null)||((payload.data&&payload.data[0]&&payload.data[0].url)?payload.data[0].url:null)||(payload.generated_assets&&payload.generated_assets.final_video_url)||(payload.generated_assets&&payload.generated_assets.final_image_url)||null;
+        }
+
+        function mediaUrlFromRef(ref){
+            if(!ref) return '';
+            if(typeof ref==='string') return ref;
+            if(typeof ref==='object') return ref.url||ref.local_url||ref.original_url||'';
+            return '';
+        }
+
+        function textFromLogValue(value){
+            if(value===null||value===undefined) return '';
+            if(typeof value==='string') return value;
+            if(typeof value==='number'||typeof value==='boolean') return String(value);
+            if(typeof value!=='object') return '';
+            if(value.value!==undefined){
+                const nested=textFromLogValue(value.value);
+                if(nested) return nested;
+            }
+            for(const key of ['text','lyrics','content','value_text']){
+                const nested=textFromLogValue(value[key]);
+                if(nested) return nested;
+            }
+            return '';
+        }
+
+        function lyricsFromLogClip(raw){
+            return textFromLogValue(raw.lyrics)||textFromLogValue(raw.lyrics_text)||textFromLogValue(raw.lyricsText);
+        }
+
+        function durationFromLogClip(raw){
+            const direct=raw.duration_seconds??raw.duration;
+            if(direct&&typeof direct==='object'){
+                return textFromLogValue(direct.value)||textFromLogValue(direct);
+            }
+            return direct||'';
+        }
+
+        function normalizeLogClip(raw,index=0){
+            if(!raw||typeof raw!=='object') return null;
+            const audio=mediaUrlFromRef(raw.audio)||raw.audio_url||raw.url||'';
+            const wav=mediaUrlFromRef(raw.wav)||raw.wav_url||'';
+            const image=mediaUrlFromRef(raw.image)||raw.image_url||raw.cover_url||'';
+            const video=mediaUrlFromRef(raw.video)||raw.video_url||'';
+            const id=raw.id||raw.clip_id||raw.clipId||`clip-${index+1}`;
+            const lyrics=lyricsFromLogClip(raw);
+            const soundPrompt=raw.sound_prompt||raw.soundPrompt||(raw.operation&&raw.operation.sound_prompt)||'';
+            if(!audio&&!wav&&!image&&!video&&!lyrics&&!soundPrompt) return null;
+            return {
+                id,
+                title:raw.title||(raw.operation&&raw.operation.title)||id,
+                audio,
+                wav,
+                image,
+                video,
+                lyrics,
+                soundPrompt,
+                duration:durationFromLogClip(raw),
+                operationId:raw.operation_id||raw.op_id||''
+            };
+        }
+
+        function extractLogClips(responseBodyObj){
+            const payload=getLogResponsePayload(responseBodyObj);
+            if(!payload||typeof payload!=='object') return [];
+            const sources=[];
+            if(payload.flowmusic&&Array.isArray(payload.flowmusic.clips)) sources.push(...payload.flowmusic.clips);
+            if(Array.isArray(payload.clips)) sources.push(...payload.clips);
+            if(Array.isArray(payload.data)) sources.push(...payload.data);
+            const seen=new Set();
+            const out=[];
+            sources.forEach((item,index)=>{
+                const clip=normalizeLogClip(item,index);
+                if(!clip) return;
+                const key=[clip.id,clip.audio,clip.wav,clip.image,clip.video].join('|');
+                if(seen.has(key)) return;
+                seen.add(key);
+                out.push(clip);
+            });
+            return out;
+        }
+
+        function extractLogSuccessSummary(log,responseBodyObj){
+            if((log&&Number(log.status_code))!==200) return '';
+            const payload=getLogResponsePayload(responseBodyObj);
+            if(!payload||typeof payload!=='object') return '生成成功，已返回结果';
+            const assets=payload.generated_assets;
+            if(assets&&typeof assets==='object'&&assets.upscaled_image&&typeof assets.upscaled_image==='object'){
+                return `生成成功，已返回${assets.upscaled_image.resolution||'高清'}结果`;
+            }
+            const directUrl=extractLogPrimaryUrl(payload);
+            if(directUrl){
+                if(isAudioUrl(directUrl)) return '生成成功，已返回音频结果';
+                if(isVideoUrl(directUrl)) return '生成成功，已返回视频结果';
+                if(isImageUrl(directUrl)) return '生成成功，已返回封面结果';
+                return '生成成功，已返回结果地址';
+            }
+            return payload.status==='success'?'生成成功':'生成成功，已返回结果';
+        }
+
+        function formatLogPayload(raw){
+            const parsed=typeof raw==='string'?parseLogJson(raw):(raw&&typeof raw==='object'?raw:null);
+            if(parsed){
+                return JSON.stringify(parsed,(_,value)=>{
+                    if(typeof value!=='string') return value;
+                    if(value.length<=4096) return value;
+                    if(/^data:(image|video|audio)\//i.test(value)) return `[数据URL已省略，长度=${value.length}]`;
+                    const sample=value.slice(0,256);
+                    if(/^[A-Za-z0-9+/=\r\n]+$/.test(sample)) return `[大体积Base64已省略，长度=${value.length}]`;
+                    return `${value.slice(0,800)}... [已截断，长度=${value.length}]`;
+                },2);
+            }
+            if(!raw) return '无';
+            const text=String(raw);
+            if(text.length<=6000) return text;
+            return `${text.slice(0,1200)}... [已截断，长度=${text.length}]`;
+        }
+
+        function resetLogMediaCache(){
+            window.logMediaUrlCache=Object.create(null);
+            window.logMediaSeq=0;
+        }
+
+        function getLogDetailToggleState(logId,key){
+            window.logDetailToggleState=window.logDetailToggleState||Object.create(null);
+            const state=window.logDetailToggleState[String(logId)]||Object.create(null);
+            return !!state[key];
+        }
+
+        function setLogDetailToggleState(logId,key,isOpen){
+            window.logDetailToggleState=window.logDetailToggleState||Object.create(null);
+            const stateKey=String(logId);
+            window.logDetailToggleState[stateKey]=window.logDetailToggleState[stateKey]||Object.create(null);
+            window.logDetailToggleState[stateKey][key]=!!isOpen;
+        }
+
+        function syncLogDetailViewState(){
+            const container=$('logDetailContent');
+            if(!container) return;
+            const toggleLogId=container.dataset.logId||'';
+            if(!toggleLogId) return;
+            container.querySelectorAll('details[data-detail-key]').forEach(el=>{
+                const key=el.dataset.detailKey||'';
+                el.open=getLogDetailToggleState(toggleLogId,key);
+            });
+            container.querySelectorAll('button[data-preview-key]').forEach(button=>{
+                const key=button.dataset.previewKey||'';
+                const shouldOpen=getLogDetailToggleState(toggleLogId,key);
+                if(!shouldOpen) return;
+                loadLogMediaPreview(button);
+            });
+        }
+
+        function bindLogDetailStateHandlers(container){
+            const logId=container&&container.dataset?container.dataset.logId:'';
+            if(!logId) return;
+            container.querySelectorAll('details[data-detail-key]').forEach(el=>{
+                el.addEventListener('toggle',()=>setLogDetailToggleState(logId,el.dataset.detailKey||'',el.open));
+            });
+        }
+
+        function logMediaStateKey(label,url){
+            const text=String(label||'')+'\n'+String(url||'');
+            let hash=0;
+            for(let i=0;i<text.length;i++) hash=((hash<<5)-hash+text.charCodeAt(i))|0;
+            return `log-media-${Math.abs(hash)}-${text.length}`;
+        }
+
+        function cacheLogMediaUrl(label,url){
+            if(!url) return '';
+            window.logMediaUrlCache=window.logMediaUrlCache||Object.create(null);
+            const key=logMediaStateKey(label,url);
+            window.logMediaUrlCache[key]=url;
+            return key;
+        }
+
+        function normalizeLogMediaUrl(url){
+            if(!url) return '';
+            const text=String(url).trim();
+            if(!text||/^data:/i.test(text)) return text;
+            try{
+                const parsed=new URL(text,window.location.origin);
+                if(parsed.pathname.startsWith('/tmp/')){
+                    return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+                }
+                return parsed.toString();
+            }catch(_){
+                return text;
+            }
+        }
+
+        function renderLogLink(label,url){
+            if(!url) return '';
+            const normalizedUrl=normalizeLogMediaUrl(url);
+            if(/^data:/i.test(String(normalizedUrl))){
+                return `<p class="text-xs"><span class="font-medium">${label}:</span> <span class="text-muted-foreground">data URL（长度 ${String(normalizedUrl).length}）</span></p>`;
+            }
+            const safeUrl=escapeLogHtml(normalizedUrl);
+            return `<p class="text-xs"><span class="font-medium">${label}:</span> <a href="${safeUrl}" target="_blank" class="text-blue-600 hover:underline break-all">${safeUrl}</a></p>`;
+        }
+
+        function isAudioUrl(url){
+            if(!url) return false;
+            const text=String(url).toLowerCase();
+            if(text.startsWith('data:audio/')) return true;
+            return /(\.mp3|\.wav|\.m4a|\.aac|\.ogg|\.flac)(\?|$)/.test(text)||text.includes('/audio/');
+        }
+
+        function isVideoUrl(url){
+            if(!url) return false;
+            const text=String(url).toLowerCase();
+            if(text.startsWith('data:video/')) return true;
+            return /(\.mp4|\.webm|\.mov|\.m3u8|\.avi)(\?|$)/.test(text)||text.includes('/video/');
+        }
+
+        function isImageUrl(url){
+            if(!url) return false;
+            const text=String(url).toLowerCase();
+            if(text.startsWith('data:image/')) return true;
+            return /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.avif|\.bmp)(\?|$)/.test(text)||text.includes('/image/');
+        }
+
+        function mediaTypeFromLabelAndUrl(label,url){
+            const lowerLabel=String(label||'').toLowerCase();
+            if(isAudioUrl(url)||lowerLabel.includes('audio')||lowerLabel.includes('wav')||lowerLabel.includes('音频')) return 'audio';
+            if(isVideoUrl(url)||lowerLabel.includes('video')||lowerLabel.includes('视频')) return 'video';
+            if(isImageUrl(url)||lowerLabel.includes('image')||lowerLabel.includes('cover')||lowerLabel.includes('封面')||lowerLabel.includes('图片')) return 'image';
+            return '';
+        }
+
+        function renderMediaPreview(label,url,withUrl=true){
+            if(!url) return '';
+            const previewUrl=normalizeLogMediaUrl(url);
+            const mediaType=mediaTypeFromLabelAndUrl(label,previewUrl);
+            const safeUrl=escapeLogHtml(previewUrl);
+            const safeLabel=escapeLogHtml(label);
+            let preview='';
+            if(mediaType==='audio'){
+                preview=`<audio src="${safeUrl}" controls preload="metadata" data-media-url="${safeUrl}" data-media-label="${safeLabel}" onerror="handleLogMediaPreviewError(this)" class="w-full"></audio>`;
+            }else if(mediaType==='video'){
+                preview=`<video src="${safeUrl}" controls preload="metadata" data-media-url="${safeUrl}" data-media-label="${safeLabel}" onerror="handleLogMediaPreviewError(this)" class="w-full max-h-80 rounded-md border border-border bg-black"></video>`;
+            }else if(mediaType==='image'){
+                preview=`<a href="${safeUrl}" target="_blank" class="block"><img src="${safeUrl}" alt="${safeLabel}" loading="lazy" decoding="async" data-media-url="${safeUrl}" data-media-label="${safeLabel}" onerror="handleLogMediaPreviewError(this)" class="max-h-80 rounded-md border border-border object-contain bg-background"></a>`;
+            }
+            return `<div class="space-y-2"><p class="text-xs font-medium">${safeLabel}</p>${withUrl?renderLogLink('URL',previewUrl):''}${preview}</div>`;
+        }
+
+        function renderLyricsBlock(lyrics){
+            if(!lyrics) return '';
+            const text=String(lyrics);
+            const normalized=text.trim().toLowerCase();
+            const note=normalized==='[instrumental]'?'<p class="mb-2 text-xs text-muted-foreground">上游返回的是纯音乐标记，不是折叠内容。</p>':'';
+            return `<div class="rounded-md border border-border bg-background p-2"><p class="text-xs font-medium mb-1">歌词（完整展开）</p>${note}<pre class="text-xs whitespace-pre-wrap break-words max-h-none overflow-visible">${escapeLogHtml(text)}</pre></div>`;
+        }
+
+        function renderLogClips(clips){
+            if(!Array.isArray(clips)||!clips.length) return '';
+            const cards=clips.map((clip,index)=>{
+                let mediaHtml='';
+                if(clip.audio) mediaHtml+=renderMediaPreview('Audio',clip.audio);
+                if(clip.wav) mediaHtml+=renderMediaPreview('WAV',clip.wav);
+                if(clip.image) mediaHtml+=renderMediaPreview('封面',clip.image);
+                if(clip.video) mediaHtml+=renderMediaPreview('视频',clip.video);
+                const meta=[];
+                if(clip.duration) meta.push(`<span>时长: ${escapeLogHtml(typeof clip.duration==='number'?clip.duration.toFixed(2)+'s':clip.duration)}</span>`);
+                if(clip.operationId) meta.push(`<span>任务: ${escapeLogHtml(clip.operationId)}</span>`);
+                let textHtml='';
+                if(clip.soundPrompt) textHtml+=`<div class="rounded-md border border-border bg-background p-2"><p class="text-xs font-medium mb-1">Sound Prompt</p><p class="text-xs whitespace-pre-wrap break-words">${escapeLogHtml(clip.soundPrompt)}</p></div>`;
+                if(clip.lyrics) textHtml+=renderLyricsBlock(clip.lyrics);
+                return `<div class="rounded-lg border border-border bg-background p-3 space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-semibold">${escapeLogHtml(index+1)}. ${escapeLogHtml(clip.title||clip.id)}</p>
+                            <p class="text-xs text-muted-foreground break-all">${escapeLogHtml(clip.id||'')}</p>
+                        </div>
+                    </div>
+                    ${meta.length?`<div class="flex flex-wrap gap-2 text-xs text-muted-foreground">${meta.join('')}</div>`:''}
+                    ${mediaHtml?`<div class="grid gap-3 md:grid-cols-2">${mediaHtml}</div>`:''}
+                    ${textHtml?`<div class="space-y-2">${textHtml}</div>`:''}
+                </div>`;
+            }).join('');
+            return `<div class="space-y-2"><h4 class="font-medium text-sm">歌曲与封面（${clips.length}首）</h4><div class="space-y-3">${cards}</div></div>`;
+        }
+
+        function handleLogMediaPreviewError(node){
+            if(!node) return;
+            const mediaUrl=node.dataset.mediaUrl||'';
+            const mediaLabel=node.dataset.mediaLabel||'媒体';
+            node.outerHTML=`<div class="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 space-y-2"><p>${escapeLogHtml(mediaLabel)}预览加载失败，请直接打开链接查看。</p>${renderLogLink('URL',mediaUrl)}</div>`;
+        }
+
+        function loadLogMediaPreview(button){
+            if(!button) return;
+            const container=button.nextElementSibling;
+            const mediaKey=button.dataset.mediaKey||'';
+            const url=(window.logMediaUrlCache&&window.logMediaUrlCache[mediaKey])||'';
+            const label=button.dataset.label||'';
+            const mediaType=button.dataset.mediaType||'';
+            if(!container||!url||!mediaType) return;
+            const detailContainer=$('logDetailContent');
+            if(detailContainer&&detailContainer.dataset&&detailContainer.dataset.logId){
+                setLogDetailToggleState(detailContainer.dataset.logId,button.dataset.previewKey||mediaKey,true);
+            }
+            if(mediaType==='audio'){
+                container.innerHTML=`<audio src="${escapeLogHtml(url)}" controls preload="metadata" data-media-url="${escapeLogHtml(url)}" data-media-label="${escapeLogHtml(label)}" onerror="handleLogMediaPreviewError(this)" class="w-full"></audio>`;
+            }else if(mediaType==='video'){
+                container.innerHTML=`<video src="${escapeLogHtml(url)}" controls preload="metadata" data-media-url="${escapeLogHtml(url)}" data-media-label="${escapeLogHtml(label)}" onerror="handleLogMediaPreviewError(this)" class="w-full max-h-80 rounded-md border border-border bg-black"></video>`;
+            }else{
+                container.innerHTML=`<img src="${escapeLogHtml(url)}" alt="${escapeLogHtml(label)}" loading="lazy" decoding="async" data-media-url="${escapeLogHtml(url)}" data-media-label="${escapeLogHtml(label)}" onerror="handleLogMediaPreviewError(this)" class="max-h-80 rounded-md border border-border object-contain bg-background">`;
+            }
+            button.remove();
+        }
+
+        function renderLogDetail(log){
+            if(!log){showToast('日志不存在','error');return}
+            resetLogMediaCache();
+            const responseEnvelope=parseLogJson(log.response_body);
+            const responseBodyObj=getLogResponsePayload(responseEnvelope);
+            const responseErrorObj=getLogErrorPayload(responseEnvelope);
+            const responseMeta=getLogMeta(responseEnvelope);
+            const requestPayloadText=formatLogPayload(log.request_body);
+            const responsePayloadText=formatLogPayload(log.status_code===200?responseBodyObj:(responseErrorObj||responseBodyObj||responseEnvelope));
+            const errorSummary=extractLogErrorSummary(log,responseEnvelope);
+            const successSummary=extractLogSuccessSummary(log,responseEnvelope);
+            const tokenDisplay=getLogTokenDisplay(log,responseEnvelope);
+            let detailHtml='';
+
+            detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm">请求数据</h4><pre class="rounded-md border border-border p-3 bg-muted/30 text-xs overflow-x-auto">${escapeLogHtml(requestPayloadText)}</pre></div>`;
+
+            if(log.status_code===200){
+                if(successSummary){
+                    detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm text-green-700">结果摘要</h4><div class="rounded-md border border-green-200 p-3 bg-green-50"><p class="text-sm text-green-700">${escapeLogHtml(successSummary)}</p></div></div>`;
+                }
+                if(responseBodyObj){
+                    const clips=extractLogClips(responseBodyObj);
+                    if(clips.length){
+                        detailHtml+=renderLogClips(clips);
+                    }
+                    const directUrl=extractLogPrimaryUrl(responseBodyObj);
+                    if(directUrl&&!clips.length){
+                        detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm">生成结果</h4><div class="rounded-md border border-border p-3 bg-muted/30 space-y-3">${renderMediaPreview('主结果',directUrl)}</div></div>`;
+                    }
+
+                    const assets=responseBodyObj.generated_assets;
+                    if(assets&&typeof assets==='object'){
+                        let assetsHtml='';
+
+                        if(assets.upscaled_image&&typeof assets.upscaled_image==='object'){
+                            const up=assets.upscaled_image;
+                            const upResolution=up.resolution||'高清';
+                            const upPreviewUrl=up.local_url||up.url||null;
+                            assetsHtml+=`<p class="text-xs"><span class="font-medium">高清分辨率:</span> ${escapeLogHtml(upResolution)}</p>`;
+                            if(upPreviewUrl){
+                                assetsHtml+=renderMediaPreview(`${upResolution}结果`,upPreviewUrl,!/^data:/i.test(String(upPreviewUrl||'')));
+                            }
+                            if(up.base64){
+                                const preview=String(up.base64).length>600?`${String(up.base64).slice(0,600)}...`:String(up.base64);
+                                assetsHtml+=`<p class="text-xs"><span class="font-medium">Base64长度:</span> ${String(up.base64).length}</p><details class="rounded border border-border p-2 bg-background"><summary class="cursor-pointer text-xs text-muted-foreground">查看Base64预览</summary><pre class="mt-2 text-xs overflow-x-auto">${escapeLogHtml(preview)}</pre></details>`;
+                            }
+                        }else{
+                            const extraMediaUrl=assets.final_video_url||assets.final_image_url||null;
+                            if(extraMediaUrl&&extraMediaUrl!==directUrl){
+                                assetsHtml+=renderMediaPreview('额外结果',extraMediaUrl,false);
+                            }
+                        }
+
+                        detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm">媒体资产信息</h4><div class="rounded-md border border-border p-3 bg-muted/30 space-y-2">${assetsHtml||'<p class="text-xs text-muted-foreground">无资产详情</p>'}</div></div>`;
+                    }
+
+                    detailHtml+=`<details class="space-y-2" data-detail-key="full-response"><summary class="cursor-pointer text-sm font-medium">完整响应（大字段已截断）</summary><pre class="mt-2 rounded-md border border-border p-3 bg-muted/30 text-xs overflow-x-auto">${escapeLogHtml(responsePayloadText)}</pre></details>`;
+                }else{
+                    detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm">响应数据</h4><pre class="rounded-md border border-border p-3 bg-muted/30 text-xs overflow-x-auto">${escapeLogHtml(responsePayloadText)}</pre></div>`;
+                }
+            }else{
+                if(errorSummary){
+                    detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm text-red-600">错误原因</h4><div class="rounded-md border border-red-200 p-3 bg-red-50"><p class="text-sm text-red-700 break-all">${escapeLogHtml(errorSummary)}</p></div></div>`;
+                }
+                detailHtml+=`<div class="space-y-2"><h4 class="font-medium text-sm text-red-600">错误响应</h4><pre class="rounded-md border border-red-200 p-3 bg-red-50 text-xs overflow-x-auto">${escapeLogHtml(responsePayloadText)}</pre></div>`;
+            }
+
+            detailHtml+=`<div class="space-y-2 pt-4 border-t border-border"><h4 class="font-medium text-sm">基本信息</h4><div class="grid grid-cols-2 gap-2 text-sm"><div><span class="text-muted-foreground">操作:</span> ${escapeLogHtml(log.operation||'-')}</div><div><span class="text-muted-foreground">状态:</span> ${escapeLogHtml(formatLogStatus(log))}</div><div><span class="text-muted-foreground">状态码:</span> <span class="inline-flex items-center rounded px-2 py-0.5 text-xs ${log.status_code===200?'bg-green-50 text-green-700':(log.status_code===102?'bg-amber-50 text-amber-700':'bg-red-50 text-red-700')}">${escapeLogHtml(log.status_code??'-')}</span></div><div><span class="text-muted-foreground">耗时:</span> ${Number(log.duration||0).toFixed(2)}秒</div><div><span class="text-muted-foreground">时间:</span> ${log.created_at?new Date(log.created_at).toLocaleString('zh-CN'):'-'}</div><div><span class="text-muted-foreground">Token:</span> ${escapeLogHtml(tokenDisplay)}</div><div><span class="text-muted-foreground">日志ID:</span> ${escapeLogHtml(log.id??'-')}</div><div><span class="text-muted-foreground">进度:</span> ${escapeLogHtml(formatLogProgress(log))}</div></div></div>`;
+
+            const detailContent=$('logDetailContent');detailContent.dataset.logId=String(log.id??'');detailContent.innerHTML=detailHtml;syncLogDetailViewState();bindLogDetailStateHandlers(detailContent);
+        }
+
+        window.addEventListener('DOMContentLoaded',()=>{checkAuth();refreshTokens();loadATAutoRefreshConfig();const initialTab=new URLSearchParams(location.search).get('tab');if(['settings','logs','test'].includes(initialTab))switchTab(initialTab)});
+    </script>
+</body>
+</html>

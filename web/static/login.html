@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - FlowMusic2API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slide-up{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+        .animate-slide-up{animation:slide-up .3s ease-out}
+    </style>
+    <script>
+        tailwind.config={theme:{extend:{colors:{border:"hsl(0 0% 89%)",input:"hsl(0 0% 89%)",ring:"hsl(0 0% 3.9%)",background:"hsl(0 0% 100%)",foreground:"hsl(0 0% 3.9%)",primary:{DEFAULT:"hsl(0 0% 9%)",foreground:"hsl(0 0% 98%)"},secondary:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 9%)"},muted:{DEFAULT:"hsl(0 0% 96.1%)",foreground:"hsl(0 0% 45.1%)"},destructive:{DEFAULT:"hsl(0 84.2% 60.2%)",foreground:"hsl(0 0% 98%)"}}}}}
+    </script>
+</head>
+<body class="h-full bg-gradient-to-br from-slate-50 to-blue-50 text-foreground antialiased">
+    <div class="flex min-h-full flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+            <!-- Brand -->
+            <div class="text-center">
+                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg shadow-primary/10">F</div>
+                <h1 class="mt-4 text-2xl font-bold tracking-tight">FlowMusic2API</h1>
+                <p class="mt-1 text-sm text-muted-foreground">管理员控制台</p>
+            </div>
+        </div>
+
+        <div class="sm:mx-auto sm:w-full sm:max-w-md mt-8">
+            <div class="rounded-xl border border-border bg-white px-6 py-8 shadow-sm sm:px-10">
+                <form id="loginForm" class="space-y-5">
+                    <div class="space-y-1.5">
+                        <label for="username" class="text-sm font-medium">账户</label>
+                        <input type="text" id="username" name="username" required class="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-shadow" placeholder="请输入账户">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label for="password" class="text-sm font-medium">密码</label>
+                        <input type="password" id="password" name="password" required class="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 transition-shadow" placeholder="请输入密码">
+                    </div>
+                    <button type="submit" id="loginButton" class="inline-flex items-center justify-center rounded-lg font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-full disabled:opacity-50">
+                        <svg class="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                        登录
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center text-xs text-muted-foreground">
+                    <p><a href="https://github.com/genz27/FlowMusic2API" target="_blank" rel="noopener noreferrer" class="hover:text-foreground transition-colors">https://github.com/genz27/FlowMusic2API</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form=document.getElementById('loginForm'),btn=document.getElementById('loginButton');
+        form.addEventListener('submit',async(e)=>{e.preventDefault();btn.disabled=true;btn.innerHTML='<svg class="animate-spin mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> 登录中...';try{const fd=new FormData(form),r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:fd.get('username'),password:fd.get('password')})});const d=await r.json();d.success?(localStorage.setItem('adminToken',d.token),location.href='/manage'):showToast(d.message||'登录失败','error')}catch(e){showToast('网络错误,请稍后重试','error')}finally{btn.disabled=false;btn.innerHTML='<svg class="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> 登录'}});
+        function showToast(m,t='error'){const d=document.createElement('div'),bc={success:'bg-green-600',error:'bg-destructive',info:'bg-primary'};d.className=`fixed bottom-4 right-4 ${bc[t]||bc.error} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up`;d.textContent=m;document.body.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.parentNode&&document.body.removeChild(d),300)},2000)}
+        window.addEventListener('DOMContentLoaded',()=>{const t=localStorage.getItem('adminToken');t&&fetch('/api/stats',{headers:{Authorization:`Bearer ${t}`}}).then(r=>{if(r.ok)location.href='/manage'})});
+    </script>
+</body>
+</html>
