@@ -89,6 +89,38 @@ func fakeSupabaseAccessToken(t *testing.T) string {
 	return header + "." + payload + "." + signature
 }
 
+func fakeFlowMusicCookieJSON(t *testing.T, email, refreshToken, providerToken, providerRefreshToken string) string {
+	t.Helper()
+	session := map[string]any{
+		"access_token":           fakeSupabaseAccessToken(t),
+		"refresh_token":          refreshToken,
+		"provider_token":         providerToken,
+		"provider_refresh_token": providerRefreshToken,
+		"user": map[string]any{
+			"email": email,
+			"user_metadata": map[string]any{
+				"name": "Cookie User",
+			},
+		},
+	}
+	sessionJSON, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("json.Marshal(session) error = %v", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(sessionJSON)
+	splitAt := len(encoded) / 2
+	cookies := []map[string]any{
+		{"domain": ".flowmusic.app", "name": "_ga", "value": "GA1.1.0.0"},
+		{"domain": "www.flowmusic.app", "name": "sb-sb-auth-token.1", "value": encoded[splitAt:]},
+		{"domain": "www.flowmusic.app", "name": "sb-sb-auth-token.0", "value": "base64-" + encoded[:splitAt]},
+	}
+	cookieJSON, err := json.Marshal(cookies)
+	if err != nil {
+		t.Fatalf("json.Marshal(cookies) error = %v", err)
+	}
+	return string(cookieJSON)
+}
+
 func TestHealthChecksDatabase(t *testing.T) {
 	rig := newHTTPTestRig(t)
 	ts := rig.Server
@@ -392,6 +424,73 @@ func TestTokenCreateDefaultsAndUpdatePreservesAutoRefresh(t *testing.T) {
 	decodeResponse(t, updateResp, &updated)
 	if updated.Token.Remark != "edited" || updated.Token.AutoRefreshEnabled {
 		t.Fatalf("update should preserve explicit false auto refresh: %+v", updated)
+	}
+}
+
+func TestTokenCookieJSONForcesRefreshTokenMode(t *testing.T) {
+	ts := newHTTPTestServer(t)
+	t.Cleanup(ts.Close)
+
+	loginResp := doJSONRequest(t, http.MethodPost, ts.URL+"/api/login", "", map[string]string{
+		"username": "admin",
+		"password": "admin",
+	})
+	var login struct {
+		Token string `json:"token"`
+	}
+	decodeResponse(t, loginResp, &login)
+
+	createCookieJSON := fakeFlowMusicCookieJSON(t, "cookie-create@example.test", "cookie-create-refresh", "cookie-create-provider", "cookie-create-provider-refresh")
+	createResp := doJSONRequest(t, http.MethodPost, ts.URL+"/api/tokens", login.Token, map[string]any{
+		"protocol_mode":  "protocol",
+		"google_cookies": createCookieJSON,
+	})
+	if createResp.Code != http.StatusOK {
+		t.Fatalf("POST /api/tokens cookie JSON status = %d, body = %s", createResp.Code, createResp.Body.String())
+	}
+	var created struct {
+		Token exportedTokenView `json:"token"`
+	}
+	decodeResponse(t, createResp, &created)
+	if created.Token.ProtocolMode != "refresh_token" ||
+		created.Token.ST != "cookie-create-refresh" ||
+		created.Token.ProviderToken != "cookie-create-provider" ||
+		created.Token.ProviderRefreshToken != "cookie-create-provider-refresh" ||
+		!strings.Contains(created.Token.GoogleCookies, "sb-sb-auth-token.0=") {
+		t.Fatalf("cookie create should switch to refresh_token and extract credentials: %+v", created.Token)
+	}
+
+	bearerResp := doJSONRequest(t, http.MethodPost, ts.URL+"/api/tokens", login.Token, map[string]any{
+		"email":         "cookie-update@example.test",
+		"flow_bearer":   "old-flow-bearer",
+		"protocol_mode": "bearer",
+	})
+	if bearerResp.Code != http.StatusOK {
+		t.Fatalf("POST /api/tokens bearer status = %d, body = %s", bearerResp.Code, bearerResp.Body.String())
+	}
+	var bearerCreated struct {
+		Token exportedTokenView `json:"token"`
+	}
+	decodeResponse(t, bearerResp, &bearerCreated)
+
+	updateCookieJSON := fakeFlowMusicCookieJSON(t, "cookie-update@example.test", "cookie-update-refresh", "cookie-update-provider", "cookie-update-provider-refresh")
+	updateResp := doJSONRequest(t, http.MethodPut, ts.URL+"/api/tokens/"+strconv.FormatInt(bearerCreated.Token.ID, 10), login.Token, map[string]any{
+		"protocol_mode":  "protocol",
+		"google_cookies": updateCookieJSON,
+	})
+	if updateResp.Code != http.StatusOK {
+		t.Fatalf("PUT /api/tokens/%d cookie JSON status = %d, body = %s", bearerCreated.Token.ID, updateResp.Code, updateResp.Body.String())
+	}
+	var updated struct {
+		Token exportedTokenView `json:"token"`
+	}
+	decodeResponse(t, updateResp, &updated)
+	if updated.Token.ProtocolMode != "refresh_token" ||
+		updated.Token.ST != "cookie-update-refresh" ||
+		updated.Token.ProviderToken != "cookie-update-provider" ||
+		updated.Token.ProviderRefreshToken != "cookie-update-provider-refresh" ||
+		!strings.Contains(updated.Token.GoogleCookies, "sb-sb-auth-token.0=") {
+		t.Fatalf("cookie update should switch to refresh_token and extract credentials: %+v", updated.Token)
 	}
 }
 
@@ -2318,6 +2417,39 @@ func TestImportTokensAcceptsFlowMusicBrowserCookieExport(t *testing.T) {
 	}
 }
 
+func TestImportTokenObjectCookieJSONForcesRefreshTokenMode(t *testing.T) {
+	ts := newHTTPTestServer(t)
+	t.Cleanup(ts.Close)
+
+	loginResp := doJSONRequest(t, http.MethodPost, ts.URL+"/api/login", "", map[string]string{
+		"username": "admin",
+		"password": "admin",
+	})
+	var login struct {
+		Token string `json:"token"`
+	}
+	decodeResponse(t, loginResp, &login)
+
+	cookieJSON := fakeFlowMusicCookieJSON(t, "cookie-object@example.test", "cookie-object-refresh", "cookie-object-provider", "cookie-object-provider-refresh")
+	importResp := doJSONRequest(t, http.MethodPost, ts.URL+"/api/tokens/import", login.Token, []map[string]any{{
+		"protocol_mode":  "protocol",
+		"google_cookies": cookieJSON,
+	}})
+	if importResp.Code != http.StatusOK {
+		t.Fatalf("POST /api/tokens/import token object cookie JSON status = %d, body = %s", importResp.Code, importResp.Body.String())
+	}
+
+	token := exportedTokenByEmail(t, ts.URL, login.Token, "cookie-object@example.test")
+	if token.ST != "cookie-object-refresh" ||
+		token.AT != "" ||
+		token.ProviderToken != "cookie-object-provider" ||
+		token.ProviderRefreshToken != "cookie-object-provider-refresh" ||
+		token.ProtocolMode != "refresh_token" ||
+		!strings.Contains(token.GoogleCookies, "sb-sb-auth-token.0=") {
+		t.Fatalf("cookie object import should switch to refresh_token and extract credentials: %+v", token)
+	}
+}
+
 func TestImportTokensRejectsBrokenFlowMusicBrowserCookieExport(t *testing.T) {
 	ts := newHTTPTestServer(t)
 	t.Cleanup(ts.Close)
@@ -2414,6 +2546,7 @@ func TestImportTokensClearFieldsClearsSelectedCredentials(t *testing.T) {
 }
 
 type exportedTokenView struct {
+	ID                   int64  `json:"id"`
 	Email                string `json:"email"`
 	Name                 string `json:"name"`
 	ST                   string `json:"st"`

@@ -418,6 +418,7 @@ func (s *Server) handleImportTokens(w http.ResponseWriter, r *http.Request) {
 		account.ClearFields = clearFieldsFromMap(item)
 		account.ExplicitFields = account.ClearFields
 		applyClearFields(&account, account.ClearFields)
+		account = autoParseCookieJSON(account)
 		var existing *domain.Account
 		if account.ProtocolMode == "" || account.ProtocolMode == "session" {
 			if account.Email != "" {

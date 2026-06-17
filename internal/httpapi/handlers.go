@@ -230,13 +230,13 @@ func (s *Server) handleUpdateAdminConfig(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var req struct {
-		Username          string `json:"admin_username"`
-		APIKey            string `json:"api_key"`
-		DebugEnabled      *bool  `json:"debug_enabled"`
-		ErrorBanThreshold int    `json:"error_ban_threshold"`
-		GuestTrialEnabled *bool  `json:"guest_trial_enabled"`
-		MaxDailyGuestUses      *int `json:"max_daily_guest_uses"`
-			GuestGlobalDailyLimit *int `json:"guest_global_daily_limit"`
+		Username              string `json:"admin_username"`
+		APIKey                string `json:"api_key"`
+		DebugEnabled          *bool  `json:"debug_enabled"`
+		ErrorBanThreshold     int    `json:"error_ban_threshold"`
+		GuestTrialEnabled     *bool  `json:"guest_trial_enabled"`
+		MaxDailyGuestUses     *int   `json:"max_daily_guest_uses"`
+		GuestGlobalDailyLimit *int   `json:"guest_global_daily_limit"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -583,12 +583,12 @@ func (s *Server) handleGuestConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"success":                true,
-		"guest_trial_enabled":    enabled,
-		"max_daily_guest_uses":   maxDaily,
-		"remaining_daily_uses":   remaining,
-			"remaining_global_daily_uses": globalRemaining,
-		"models":                 flowMusicModels(true),
+		"success":                     true,
+		"guest_trial_enabled":         enabled,
+		"max_daily_guest_uses":        maxDaily,
+		"remaining_daily_uses":        remaining,
+		"remaining_global_daily_uses": globalRemaining,
+		"models":                      flowMusicModels(true),
 	})
 }
 
@@ -1154,9 +1154,7 @@ func autoParseCookieJSON(account domain.Account) domain.Account {
 	if account.Name == "" {
 		account.Name = stringFromMap(item, "name")
 	}
-	if account.ProtocolMode == "" {
-		account.ProtocolMode = "refresh_token"
-	}
+	account.ProtocolMode = "refresh_token"
 	if account.RefreshIntervalMins <= 0 {
 		if v, ok := item["refresh_interval_minutes"]; ok {
 			if f, ok := v.(float64); ok {

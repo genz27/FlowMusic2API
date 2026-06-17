@@ -239,6 +239,8 @@ go test ./cmd/server -run TestServerProcessSQLiteSmoke -count=1 -v -timeout 90s
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
+| `FLOWMUSIC_HTTP_BIND` | `127.0.0.1` | 控制宿主机发布地址；局域网/公网暴露可设为 `FLOWMUSIC_HTTP_BIND=0.0.0.0` |
+| `FLOWMUSIC_HTTP_HOST` | `0.0.0.0` | 控制容器内服务监听地址 |
 | `FLOWMUSIC_HTTP_PORT` | `8000` | 监听端口 |
 | `FLOWMUSIC_DB_DRIVER` | `sqlite` | 数据库驱动（sqlite/postgres） |
 | `FLOWMUSIC_ADMIN_USER` | `admin` | 管理员用户名 |
@@ -250,6 +252,8 @@ go test ./cmd/server -run TestServerProcessSQLiteSmoke -count=1 -v -timeout 90s
 | `FLOWMUSIC_GUEST_GLOBAL_DAILY_LIMIT` | `0` | 访客全局每日限制（0 不限制） |
 
 完整变量列表见 `.env.example`。
+
+部署提示：`FLOWMUSIC_HTTP_BIND` 控制宿主机发布地址，例如 `FLOWMUSIC_HTTP_BIND=0.0.0.0` 可对外发布端口；`FLOWMUSIC_HTTP_HOST` 控制容器内服务监听地址。
 
 ## 许可证
 
