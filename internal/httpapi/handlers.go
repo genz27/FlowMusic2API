@@ -588,7 +588,7 @@ func (s *Server) handleGuestConfig(w http.ResponseWriter, r *http.Request) {
 		"max_daily_guest_uses":        maxDaily,
 		"remaining_daily_uses":        remaining,
 		"remaining_global_daily_uses": globalRemaining,
-		"models":                      flowMusicModels(true),
+		"models":                      flowMusicModels(false),
 	})
 }
 
