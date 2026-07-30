@@ -1,0 +1,59 @@
+name: CI
+
+# Free forever for public GitHub repos:
+# - go test
+# - golangci-lint (open source)
+# - reviewdog PR line comments (open source, uses GITHUB_TOKEN only)
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  test:
+    name: Go Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        # Integration tests self-skip without live env vars / DSN.
+        run: go test ./...
+
+  lint:
+    name: Lint & PR Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint with reviewdog
+        uses: reviewdog/action-golangci-lint@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          go_version_file: go.mod
+          golangci_lint_flags: "--timeout=5m"
+          # Only report issues on added lines so historical noise doesn't block every PR.
+          filter_mode: added
+          # PR: inline review comments. Non-PR: annotations via check.
+          reporter: github-pr-review
+          fail_on_error: true

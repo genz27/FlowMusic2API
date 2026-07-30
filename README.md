@@ -24,6 +24,20 @@
 - 🗄️ **缓存支持** — 本地磁盘 / S3 / Cloudflare R2 缓存，可配置过期时间
 - 🖥️ **Web 管理面板** — 完整的 Token、系统配置、请求日志、模型测试界面
 - 🐳 **Docker 支持** — 一键部署，支持 SQLite / PostgreSQL
+- ✅ **免费 CI 审核** — GitHub Actions：`go test` + `golangci-lint` + `reviewdog` PR 行内评论（无第三方付费机器人）
+
+### 免费 CI 说明
+
+| 任务 | 工具 | 费用 |
+|------|------|------|
+| 单元测试 | `go test ./...` | 公开仓 Actions 免费 |
+| 静态检查 | [golangci-lint](https://golangci-lint.run/) | 开源 |
+| PR 行内评论 | [reviewdog](https://github.com/reviewdog/reviewdog) | 开源，只用 `GITHUB_TOKEN` |
+
+- 工作流：`.github/workflows/ci.yml`（`push`/`pull_request` 自动跑）
+- 配置：`.golangci.yml`
+- 策略：只评论 **本次新增代码行**（`filter_mode: added`），避免历史代码噪声刷屏
+- 本地复现：`go test ./...`；安装 golangci-lint 后执行 `golangci-lint run ./...`
 
 ## 快速开始
 

@@ -1,0 +1,46 @@
+# Free local/CI lint for FlowMusic2API (golangci-lint v2 + reviewdog).
+# CI comments only on PR added lines (see .github/workflows/ci.yml filter_mode).
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - bodyclose
+  settings:
+    misspell:
+      locale: US
+    staticcheck:
+      # Keep style nits from blocking useful PRs; catch real bugs via default checks.
+      checks:
+        - all
+        - "-ST1000"
+        - "-ST1005"
+        - "-QF1003"
+        - "-S1021"
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Dead helpers may remain for API symmetry; don't fail CI solely on unused.
+      - path: internal/httpapi/handlers\.go
+        linters:
+          - unused
+        text: streamChatCompletion
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
