@@ -909,10 +909,10 @@
             {name:'其他模型',filter:()=>true}
         ];
         const TEST_FALLBACK_MODELS={
-            'lyria':'Standard quality music generation',
-            'lyria-fast':'Music generation alias using FlowMusic standard mode',
-            'lyria-pro':'Best quality, deeper composition reasoning',
-            'lyria-pro-fast':'Pro music generation alias using FlowMusic standard mode'
+            'lyria':'Top performing, flagship model (Lyria 3.5)',
+            'lyria-fast':'Lyria 3.5 alias using FlowMusic standard mode',
+            'lyria-pro':'Legacy model (Lyria 3 Pro), deeper composition reasoning',
+            'lyria-pro-fast':'Legacy Lyria 3 Pro alias using FlowMusic standard mode'
         };
         const $=(id)=>document.getElementById(id),
         checkAuth=()=>{const t=localStorage.getItem('adminToken');return t||(location.href='/login',null),t},

@@ -15,7 +15,7 @@
 
 ## 核心特性
 
-- 🎵 **AI 音乐生成** — 支持 lyria / lyria-fast / lyria-pro / lyria-pro-fast 模型
+- 🎵 **AI 音乐生成** — 支持 Lyria 3.5（`lyria` / `lyria-fast`）与 legacy Lyria 3 Pro（`lyria-pro` / `lyria-pro-fast`）
 - 🔄 **Bearer 自动刷新** — 通过 refresh token / provider token / Cookie 协议自动换新，临近过期即时刷新
 - 👥 **账号池管理** — 多 Token 负载均衡，连续错误自动禁用，智能选择低错误账号
 - 📊 **余额与套餐展示** — 实时查询并显示账号 Credits 和订阅套餐
@@ -137,14 +137,14 @@ data: [DONE]
 
 ### 支持的模型
 
-| 模型 ID | 说明 |
-|---------|------|
-| `lyria` | 标准音乐生成 |
-| `lyria-fast` | 快速音乐生成 |
-| `lyria-pro` | 高质量音乐生成，更深入的作曲推理 |
-| `lyria-pro-fast` | 高质量快速音乐生成 |
+| 模型 ID | 上游 selected_model | 说明 |
+|---------|---------------------|------|
+| `lyria` | Lyria 3.5 | 旗舰模型（默认） |
+| `lyria-fast` | Lyria 3.5 | Lyria 3.5 快速别名 |
+| `lyria-pro` | Lyria 3 Pro | 旧版 Pro，更深作曲推理 |
+| `lyria-pro-fast` | Lyria 3 Pro | 旧版 Pro 快速别名 |
 
-旧版兼容别名：`flowmusic`、`flowmusic-standard`、`flowmusic-producer-standard` 自动映射到 `lyria`。
+兼容别名：`lyria-3.5` → `lyria`；`lyria-3-pro` → `lyria-pro`；`flowmusic` / `flowmusic-standard` / `flowmusic-producer-standard` → `lyria`。
 
 ### 其他接口
 

@@ -1014,6 +1014,7 @@ func TestChatCompletionsEndToEndWithMockFlowMusic(t *testing.T) {
 					PartKind string `json:"part_kind"`
 				} `json:"parts"`
 				ClientContext struct {
+					SelectedModel      any    `json:"selected_model"`
 					GhostwriterVersion string `json:"ghostwriter_version"`
 				} `json:"client_context"`
 				ModelName string `json:"model_name"`
@@ -1026,11 +1027,11 @@ func TestChatCompletionsEndToEndWithMockFlowMusic(t *testing.T) {
 				t.Fatalf("unexpected conversation request: %+v", req)
 			}
 			if strings.Contains(req.Parts[0].Content, "pro fast") {
-				if req.Mode != "standard" || req.ClientContext.GhostwriterVersion != "pro" {
+				if req.Mode != "standard" || req.ClientContext.GhostwriterVersion != "pro" || req.ClientContext.SelectedModel != "Lyria 3 Pro" {
 					t.Fatalf("unexpected pro fast request: %+v", req)
 				}
 				sawProFast = true
-			} else if req.Mode != "standard" || req.ClientContext.GhostwriterVersion != "standard" {
+			} else if req.Mode != "standard" || req.ClientContext.GhostwriterVersion != "standard" || req.ClientContext.SelectedModel != "Lyria 3.5" {
 				t.Fatalf("unexpected standard request: %+v", req)
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"job_id": "job-1"})

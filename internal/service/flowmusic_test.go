@@ -468,6 +468,9 @@ func TestBuildConversationRequestUsesStandardFlowMusicShape(t *testing.T) {
 	if req.ClientContext.GhostwriterVersion != "standard" || req.ClientContext.LyricsIDMap == nil || req.ClientContext.SongQueue == nil {
 		t.Fatalf("unexpected client context: %+v", req.ClientContext)
 	}
+	if req.ClientContext.SelectedModel != "Lyria 3.5" {
+		t.Fatalf("unexpected selected_model: %+v, want Lyria 3.5", req.ClientContext.SelectedModel)
+	}
 }
 
 func TestBuildConversationRequestCompactsDistractingPrompt(t *testing.T) {
@@ -516,25 +519,29 @@ func TestBuildConversationRequestMapsLyriaVariants(t *testing.T) {
 		model              string
 		wantModelName      string
 		wantMode           string
+		wantSelectedModel  string
 		wantGhostwriterVer string
 	}{
-		{model: "lyria", wantModelName: "producer:standard", wantMode: "standard", wantGhostwriterVer: "standard"},
-		{model: "Lyria-fast", wantModelName: "producer:standard", wantMode: "standard", wantGhostwriterVer: "standard"},
-		{model: "lyria-pro", wantModelName: "producer:standard", wantMode: "standard", wantGhostwriterVer: "pro"},
-		{model: "lyria-pro-fast", wantModelName: "producer:standard", wantMode: "standard", wantGhostwriterVer: "pro"},
-		{model: "flowmusic-producer-standard", wantModelName: "producer:standard", wantMode: "standard", wantGhostwriterVer: "standard"},
+		{model: "lyria", wantModelName: "producer:standard", wantMode: "standard", wantSelectedModel: "Lyria 3.5", wantGhostwriterVer: "standard"},
+		{model: "Lyria-fast", wantModelName: "producer:standard", wantMode: "standard", wantSelectedModel: "Lyria 3.5", wantGhostwriterVer: "standard"},
+		{model: "lyria-3.5", wantModelName: "producer:standard", wantMode: "standard", wantSelectedModel: "Lyria 3.5", wantGhostwriterVer: "standard"},
+		{model: "lyria-pro", wantModelName: "producer:standard", wantMode: "standard", wantSelectedModel: "Lyria 3 Pro", wantGhostwriterVer: "pro"},
+		{model: "lyria-pro-fast", wantModelName: "producer:standard", wantMode: "standard", wantSelectedModel: "Lyria 3 Pro", wantGhostwriterVer: "pro"},
+		{model: "flowmusic-producer-standard", wantModelName: "producer:standard", wantMode: "standard", wantSelectedModel: "Lyria 3.5", wantGhostwriterVer: "standard"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.model, func(t *testing.T) {
 			req := BuildConversationRequest("prompt", tt.model)
-			if req.ModelName != tt.wantModelName || req.Mode != tt.wantMode || req.ClientContext.GhostwriterVersion != tt.wantGhostwriterVer {
-				t.Fatalf("BuildConversationRequest(%q) model_name=%q mode=%q ghostwriter=%q, want %q %q %q",
+			if req.ModelName != tt.wantModelName || req.Mode != tt.wantMode || req.ClientContext.GhostwriterVersion != tt.wantGhostwriterVer || req.ClientContext.SelectedModel != tt.wantSelectedModel {
+				t.Fatalf("BuildConversationRequest(%q) model_name=%q mode=%q selected=%v ghostwriter=%q, want %q %q %q %q",
 					tt.model,
 					req.ModelName,
 					req.Mode,
+					req.ClientContext.SelectedModel,
 					req.ClientContext.GhostwriterVersion,
 					tt.wantModelName,
 					tt.wantMode,
+					tt.wantSelectedModel,
 					tt.wantGhostwriterVer,
 				)
 			}

@@ -534,13 +534,18 @@ func conversationJobID(payload map[string]any) string {
 
 func BuildConversationRequest(prompt, model string) ConversationRequest {
 	modelSpec := flowModelSpec(model)
+	selectedModel := strings.TrimSpace(modelSpec.SelectedModel)
+	var selected any
+	if selectedModel != "" {
+		selected = selectedModel
+	}
 	return ConversationRequest{
 		Parts: []ConversationPart{
 			{Content: buildMusicGenerationPrompt(prompt), PartKind: "user-prompt"},
 		},
 		ClientContext: ConversationClientContext{
 			SongQueue:          []any{},
-			SelectedModel:      nil,
+			SelectedModel:      selected,
 			LyricsIDMap:        map[string]any{},
 			GhostwriterVersion: modelSpec.GhostwriterVersion,
 		},
