@@ -234,63 +234,17 @@ func (s *GenerationService) GenerateWithProgress(ctx context.Context, prompt, mo
 		}
 		hasAudio := false
 		for _, clip := range clips {
-			if clip.AudioURL == "" && clip.WavURL == "" {
+			item, ok, err := s.buildClipOutput(ctx, clip, runtime.MaxAttempts, emit)
+			if err != nil {
+				cacheErr := err
+				s.failLog(ctx, logID, account.ID, reqPayload, start, cacheErr)
+				s.recordFailure(ctx, account.ID)
+				return output, cacheErr
+			}
+			if !ok {
 				continue
 			}
-			item := newClipOutput(clip)
-			if clip.AudioURL != "" {
-				emit("caching", fmt.Sprintf("缓存音频文件: %s", firstNonEmpty(clip.Title, clip.ID)), 82)
-				ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-					return s.cache.CacheURL(ctx, clip.AudioURL)
-				})
-				if err != nil {
-					cacheErr := fmt.Errorf("cache audio: %w", err)
-					s.failLog(ctx, logID, account.ID, reqPayload, start, cacheErr)
-					s.recordFailure(ctx, account.ID)
-					return output, cacheErr
-				}
-				item.Audio = ref
-			}
-			if clip.WavURL != "" {
-				emit("caching", fmt.Sprintf("缓存 WAV 文件: %s", firstNonEmpty(clip.Title, clip.ID)), 86)
-				ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-					return s.cache.CacheURL(ctx, clip.WavURL)
-				})
-				if err != nil {
-					cacheErr := fmt.Errorf("cache wav: %w", err)
-					s.failLog(ctx, logID, account.ID, reqPayload, start, cacheErr)
-					s.recordFailure(ctx, account.ID)
-					return output, cacheErr
-				}
-				item.Wav = &ref
-			}
 			hasAudio = true
-			if clip.ImageURL != "" {
-				emit("caching", fmt.Sprintf("缓存封面: %s", firstNonEmpty(clip.Title, clip.ID)), 90)
-				ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-					return s.cache.CacheURL(ctx, clip.ImageURL)
-				})
-				if err != nil {
-					cacheErr := fmt.Errorf("cache image: %w", err)
-					s.failLog(ctx, logID, account.ID, reqPayload, start, cacheErr)
-					s.recordFailure(ctx, account.ID)
-					return output, cacheErr
-				}
-				item.Image = &ref
-			}
-			if clip.VideoURL != "" {
-				emit("caching", fmt.Sprintf("缓存视频: %s", firstNonEmpty(clip.Title, clip.ID)), 92)
-				ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-					return s.cache.CacheURL(ctx, clip.VideoURL)
-				})
-				if err != nil {
-					cacheErr := fmt.Errorf("cache video: %w", err)
-					s.failLog(ctx, logID, account.ID, reqPayload, start, cacheErr)
-					s.recordFailure(ctx, account.ID)
-					return output, cacheErr
-				}
-				item.Video = &ref
-			}
 			output.Clips = append(output.Clips, item)
 		}
 		if !hasAudio {
@@ -395,51 +349,14 @@ func (s *GenerationService) LookupResult(ctx context.Context, lookup GenerationR
 	}
 	hasAudio := false
 	for _, clip := range clips {
-		if clip.AudioURL == "" && clip.WavURL == "" {
+		item, ok, err := s.buildClipOutput(ctx, clip, runtime.MaxAttempts, emit)
+		if err != nil {
+			return output, err
+		}
+		if !ok {
 			continue
 		}
-		item := newClipOutput(clip)
-		if clip.AudioURL != "" {
-			emit("caching", fmt.Sprintf("缓存音频文件: %s", firstNonEmpty(clip.Title, clip.ID)), 82)
-			ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-				return s.cache.CacheURL(ctx, clip.AudioURL)
-			})
-			if err != nil {
-				return output, fmt.Errorf("cache audio: %w", err)
-			}
-			item.Audio = ref
-		}
-		if clip.WavURL != "" {
-			emit("caching", fmt.Sprintf("缓存 WAV 文件: %s", firstNonEmpty(clip.Title, clip.ID)), 86)
-			ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-				return s.cache.CacheURL(ctx, clip.WavURL)
-			})
-			if err != nil {
-				return output, fmt.Errorf("cache wav: %w", err)
-			}
-			item.Wav = &ref
-		}
 		hasAudio = true
-		if clip.ImageURL != "" {
-			emit("caching", fmt.Sprintf("缓存封面: %s", firstNonEmpty(clip.Title, clip.ID)), 90)
-			ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-				return s.cache.CacheURL(ctx, clip.ImageURL)
-			})
-			if err != nil {
-				return output, fmt.Errorf("cache image: %w", err)
-			}
-			item.Image = &ref
-		}
-		if clip.VideoURL != "" {
-			emit("caching", fmt.Sprintf("缓存视频: %s", firstNonEmpty(clip.Title, clip.ID)), 92)
-			ref, err := retryValue(ctx, runtime.MaxAttempts, func() (domain.MediaRef, error) {
-				return s.cache.CacheURL(ctx, clip.VideoURL)
-			})
-			if err != nil {
-				return output, fmt.Errorf("cache video: %w", err)
-			}
-			item.Video = &ref
-		}
 		output.Clips = append(output.Clips, item)
 	}
 	if !hasAudio {
@@ -461,6 +378,96 @@ func newClipOutput(clip ClipResult) ClipOutput {
 		DurationSeconds: clip.DurationSeconds,
 		CreatedAt:       clip.CreatedAt,
 	}
+}
+
+type progressEmitter func(stage, message string, progress int)
+
+// buildClipOutput caches media for one clip.
+// Primary audio cache failures are hard errors; wav/image/video soft-fail to original URLs
+// because FlowMusic often returns wav_url before the object is actually available (HTTP 404).
+func (s *GenerationService) buildClipOutput(ctx context.Context, clip ClipResult, attempts int, emit progressEmitter) (ClipOutput, bool, error) {
+	if clip.AudioURL == "" && clip.WavURL == "" {
+		return ClipOutput{}, false, nil
+	}
+	item := newClipOutput(clip)
+	label := firstNonEmpty(clip.Title, clip.ID)
+	if clip.AudioURL != "" {
+		if emit != nil {
+			emit("caching", fmt.Sprintf("缓存音频文件: %s", label), 82)
+		}
+		ref, err := s.cacheRequiredURL(ctx, attempts, clip.AudioURL)
+		if err != nil {
+			return ClipOutput{}, false, fmt.Errorf("cache audio: %w", err)
+		}
+		item.Audio = ref
+	}
+	if clip.WavURL != "" {
+		if emit != nil {
+			emit("caching", fmt.Sprintf("缓存 WAV 文件: %s", label), 86)
+		}
+		ref, fallback, err := s.cacheOptionalURL(ctx, attempts, clip.WavURL)
+		if err != nil {
+			return ClipOutput{}, false, fmt.Errorf("cache wav: %w", err)
+		}
+		item.Wav = &ref
+		if fallback && emit != nil {
+			emit("caching", fmt.Sprintf("WAV 暂不可用，已回退原链接: %s", label), 86)
+		}
+	}
+	if clip.ImageURL != "" {
+		if emit != nil {
+			emit("caching", fmt.Sprintf("缓存封面: %s", label), 90)
+		}
+		ref, fallback, err := s.cacheOptionalURL(ctx, attempts, clip.ImageURL)
+		if err != nil {
+			return ClipOutput{}, false, fmt.Errorf("cache image: %w", err)
+		}
+		item.Image = &ref
+		if fallback && emit != nil {
+			emit("caching", fmt.Sprintf("封面缓存失败，已回退原链接: %s", label), 90)
+		}
+	}
+	if clip.VideoURL != "" {
+		if emit != nil {
+			emit("caching", fmt.Sprintf("缓存视频: %s", label), 92)
+		}
+		ref, fallback, err := s.cacheOptionalURL(ctx, attempts, clip.VideoURL)
+		if err != nil {
+			return ClipOutput{}, false, fmt.Errorf("cache video: %w", err)
+		}
+		item.Video = &ref
+		if fallback && emit != nil {
+			emit("caching", fmt.Sprintf("视频缓存失败，已回退原链接: %s", label), 92)
+		}
+	}
+	return item, true, nil
+}
+
+func originalMediaRef(sourceURL string) domain.MediaRef {
+	sourceURL = strings.TrimSpace(sourceURL)
+	return domain.MediaRef{OriginalURL: sourceURL, URL: sourceURL}
+}
+
+func (s *GenerationService) cacheRequiredURL(ctx context.Context, attempts int, sourceURL string) (domain.MediaRef, error) {
+	return retryValue(ctx, attempts, func() (domain.MediaRef, error) {
+		return s.cache.CacheURL(ctx, sourceURL)
+	})
+}
+
+// cacheOptionalURL caches when possible; on download/cache errors returns the original URL
+// so optional assets (wav/image/video) never fail an otherwise successful generation.
+func (s *GenerationService) cacheOptionalURL(ctx context.Context, attempts int, sourceURL string) (domain.MediaRef, bool, error) {
+	sourceURL = strings.TrimSpace(sourceURL)
+	if sourceURL == "" {
+		return domain.MediaRef{}, false, nil
+	}
+	ref, err := retryValue(ctx, attempts, func() (domain.MediaRef, error) {
+		return s.cache.CacheURL(ctx, sourceURL)
+	})
+	if err != nil {
+		return originalMediaRef(sourceURL), true, nil
+	}
+	return ref, false, nil
 }
 
 func (s *GenerationService) lookupAccount(ctx context.Context, accountID int64, leaseTTL time.Duration) (*domain.Account, func(), error) {

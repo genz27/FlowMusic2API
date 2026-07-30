@@ -2912,6 +2912,116 @@ func TestGenerateReturnsMultipleClips(t *testing.T) {
 	}
 }
 
+func TestGenerateSoftFailsOptionalWavCache404(t *testing.T) {
+	ctx := context.Background()
+	clipID := "11111111-1111-1111-1111-111111111111"
+	mediaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/song.mp3":
+			w.Header().Set("Content-Type", "audio/mpeg")
+			_, _ = w.Write([]byte("fake-mp3"))
+		case "/song.wav":
+			http.NotFound(w, r)
+		default:
+			t.Fatalf("unexpected media path: %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(mediaServer.Close)
+
+	flowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/__api/conversation":
+			writeTestJSON(t, w, map[string]string{"job_id": "job-1"})
+		case "/__api/messages/job-1/stream":
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = w.Write([]byte(`data: {"clip_ids":["` + clipID + `"]}` + "\n\n"))
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		case "/__api/clips":
+			writeTestJSON(t, w, map[string]any{
+				"clips": map[string]any{
+					clipID: map[string]string{
+						"id":        clipID,
+						"title":     "Soft Wav",
+						"audio_url": mediaServer.URL + "/song.mp3",
+						"wav_url":   mediaServer.URL + "/song.wav",
+					},
+				},
+			})
+		default:
+			t.Fatalf("unexpected FlowMusic path: %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(flowServer.Close)
+
+	dir := t.TempDir()
+	cfg := config.Config{
+		DataDir:              dir,
+		CacheDir:             filepath.Join(dir, "tmp"),
+		DatabaseDriver:       "sqlite",
+		DatabaseURL:          filepath.Join(dir, "flowmusic2api.db"),
+		FlowMusicBaseURL:     flowServer.URL,
+		UpstreamTimeout:      time.Second,
+		GenerationTimeout:    time.Second,
+		TokenRefreshLead:     time.Minute,
+		TokenRefreshInterval: time.Hour,
+		DefaultAdminUser:     "admin",
+		DefaultAdminPassword: "admin",
+		DefaultAPIKey:        "test-api-key",
+	}
+	db, err := store.New(ctx, cfg)
+	if err != nil {
+		t.Fatalf("store.New() error = %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatalf("Migrate() error = %v", err)
+	}
+	if err := db.EnsureDefaults(ctx); err != nil {
+		t.Fatalf("EnsureDefaults() error = %v", err)
+	}
+	if err := db.UpdateCacheConfig(ctx, domain.CacheConfig{
+		Enabled:     true,
+		StorageMode: "local",
+		BaseURL:     "https://cdn.example.test",
+	}); err != nil {
+		t.Fatalf("UpdateCacheConfig() error = %v", err)
+	}
+	if _, err := db.CreateAccount(ctx, domain.Account{
+		Email:        "soft-wav@example.test",
+		ProtocolMode: "bearer",
+		FlowBearer:   "flow-bearer",
+	}); err != nil {
+		t.Fatalf("CreateAccount() error = %v", err)
+	}
+
+	flow := NewFlowMusicClient(cfg)
+	accounts := NewAccountService(cfg, db, flow)
+	cache := storage.NewCache(cfg, db, NewHTTPClient(cfg, ""))
+	generation := NewGenerationService(cfg, db, accounts, flow, cache)
+
+	var sawWavFallback bool
+	out, err := generation.GenerateWithProgress(ctx, "prompt", "lyria", func(progress GenerationProgress) {
+		if strings.Contains(progress.Message, "WAV 暂不可用") {
+			sawWavFallback = true
+		}
+	})
+	if err != nil {
+		t.Fatalf("GenerateWithProgress() error = %v, want soft-fail success", err)
+	}
+	if len(out.Clips) != 1 || out.Clips[0].Wav == nil {
+		t.Fatalf("unexpected clips: %+v", out.Clips)
+	}
+	if out.Clips[0].Wav.URL != mediaServer.URL+"/song.wav" || out.Clips[0].Wav.OriginalURL != mediaServer.URL+"/song.wav" {
+		t.Fatalf("wav should fall back to original URL: %+v", out.Clips[0].Wav)
+	}
+	if !strings.HasPrefix(out.Clips[0].Audio.URL, "https://cdn.example.test/") {
+		t.Fatalf("audio should still be cached: %+v", out.Clips[0].Audio)
+	}
+	if !sawWavFallback {
+		t.Fatalf("expected WAV fallback progress message")
+	}
+}
+
 func TestGenerateFailsWhenFlowMusicReturnsNoAudioClips(t *testing.T) {
 	ctx := context.Background()
 	clipID := "11111111-1111-1111-1111-111111111111"
