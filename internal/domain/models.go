@@ -20,6 +20,9 @@ type GenerationModel struct {
 	Description        string
 	FlowMusicModelName string
 	FlowMusicMode      string
+	// SelectedModel is FlowMusic client_context.selected_model (public_name).
+	// HAR 2026-07-30: "Lyria 3.5" (flagship default), "Lyria 3 Pro" (legacy).
+	SelectedModel      string
 	GhostwriterVersion string
 	Aliases            []string
 }
@@ -27,36 +30,43 @@ type GenerationModel struct {
 var generationModels = []GenerationModel{
 	{
 		ID:                 "lyria",
-		Name:               "Lyria",
-		Description:        "Standard quality music generation",
+		Name:               "Lyria 3.5",
+		Description:        "Top performing, flagship model (Lyria 3.5)",
 		FlowMusicModelName: "producer:standard",
 		FlowMusicMode:      "standard",
+		SelectedModel:      "Lyria 3.5",
 		GhostwriterVersion: "standard",
-		Aliases:            []string{"lyria-standard", "flowmusic-producer-standard", "flowmusic-standard", "flowmusic"},
+		Aliases:            []string{"lyria-3.5", "lyria-standard", "flowmusic-producer-standard", "flowmusic-standard", "flowmusic"},
 	},
 	{
 		ID:                 "lyria-fast",
-		Name:               "Lyria Fast",
-		Description:        "Music generation alias using FlowMusic standard mode",
+		Name:               "Lyria 3.5 Fast",
+		Description:        "Lyria 3.5 alias using FlowMusic standard mode",
 		FlowMusicModelName: "producer:standard",
 		FlowMusicMode:      "standard",
+		SelectedModel:      "Lyria 3.5",
 		GhostwriterVersion: "standard",
+		Aliases:            []string{"lyria-3.5-fast"},
 	},
 	{
 		ID:                 "lyria-pro",
-		Name:               "Lyria Pro",
-		Description:        "Best quality, deeper composition reasoning",
+		Name:               "Lyria 3 Pro",
+		Description:        "Legacy model (Lyria 3 Pro), deeper composition reasoning",
 		FlowMusicModelName: "producer:standard",
 		FlowMusicMode:      "standard",
+		SelectedModel:      "Lyria 3 Pro",
 		GhostwriterVersion: "pro",
+		Aliases:            []string{"lyria-3-pro", "lyria-3.pro"},
 	},
 	{
 		ID:                 "lyria-pro-fast",
-		Name:               "Lyria Pro Fast",
-		Description:        "Pro music generation alias using FlowMusic standard mode",
+		Name:               "Lyria 3 Pro Fast",
+		Description:        "Legacy Lyria 3 Pro alias using FlowMusic standard mode",
 		FlowMusicModelName: "producer:standard",
 		FlowMusicMode:      "standard",
+		SelectedModel:      "Lyria 3 Pro",
 		GhostwriterVersion: "pro",
+		Aliases:            []string{"lyria-3-pro-fast"},
 	},
 }
 
